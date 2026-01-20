@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Assault - Space Invaders 3D</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="menu" class="screen">
+            <canvas id="menu-canvas"></canvas>
+            <div class="menu-content">
+                <h1>PIXEL ASSAULT</h1>
+                <button id="start-btn">JUGAR</button>
+                <button id="controls-btn">CONTROLES</button>
+            </div>
+        </div>
+        
+        <div id="game" class="screen hidden">
+            <div id="hud">
+                <div>PUNTUACIÓN: <span id="score">0</span></div>
+                <div>NIVEL: <span id="level">1</span></div>
+                <div>VIDAS: <span id="lives">3</span></div>
+                <div>HORDA: <span id="wave">1</span></div>
+            </div>
+            <div id="wave-banner" class="wave-banner hidden">HORDA 1</div>
+            <canvas id="game-canvas"></canvas>
+        </div>
+        
+        <div id="controls" class="screen hidden">
+            <h2>CONTROLES</h2>
+            <p>← → : Mover nave</p>
+            <p>ESPACIO: Disparar</p>
+            <p>P: Pausar</p>
+            <button id="back-to-menu">VOLVER AL MENÚ</button>
+        </div>
+        
+        <div id="game-over" class="screen hidden">
+            <h2>GAME OVER</h2>
+            <p>Puntuación final: <span id="final-score">0</span></p>
+            <button id="play-again">JUGAR DE NUEVO</button>
+            <button id="main-menu">MENÚ PRINCIPAL</button>
+        </div>
+    </div>
+
+    <!-- Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    
+    <!-- Nuestro script principal -->
+    <script src="js/main.js" type="module"></script>
+    <!-- Animación del menú -->
+    <script src="js/menu_intro.js" type="module"></script>
+</body>
+</html>
