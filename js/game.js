@@ -7,6 +7,8 @@ export class Game {
             height: window.innerHeight,
             playerSpeed: 0.5,
             bulletSpeed: 1,
+            playfieldHalfWidth: 8,
+            playfieldHalfHeight: 5.5,
             enemySpeed: 0.1,
             enemyRows: 5,
             enemyCols: 10,
@@ -29,6 +31,8 @@ export class Game {
         this.enemyMoveDown = false;
         this.lastEnemyMoveTime = 0;
         this.enemyMoveInterval = 1000; // ms
+        this.enemySpawnQueue = [];
+        this.isSpawningWave = false;
         this.lastBulletTime = 0;
         this.bulletCooldown = 500; // ms
         this.keys = {};
@@ -150,6 +154,93 @@ export class Game {
                 this.enemies.push(enemy);
             }
         }
+    }
+
+    buildEnemySpawnQueue() {
+        const startX = -((this.config.enemyCols - 1) * this.config.enemySpacing) / 2;
+        const startY = 3;
+
+        const rowTextures = [
+            this.textures.alien1,
+            this.textures.alien2,
+            this.textures.alien3,
+            this.textures.alien1,
+            this.textures.alien2
+        ];
+
+        const queue = [];
+        for (let row = 0; row < this.config.enemyRows; row++) {
+            for (let col = 0; col < this.config.enemyCols; col++) {
+                queue.push({
+                    x: startX + col * this.config.enemySpacing,
+                    y: startY - row * this.config.enemySpacing * 0.7,
+                    row,
+                    col,
+                    texture: rowTextures[row % rowTextures.length]
+                });
+            }
+        }
+
+        // Mezclar para que salgan en orden "aleatorio"; si prefieres orden por filas, quita esto
+        for (let i = queue.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const tmp = queue[i];
+            queue[i] = queue[j];
+            queue[j] = tmp;
+        }
+
+        return queue;
+    }
+
+    spawnEnemyFromQueue() {
+        if (!this.enemySpawnQueue.length) return;
+
+        const next = this.enemySpawnQueue.shift();
+        const material = new THREE.SpriteMaterial({
+            map: next.texture,
+            transparent: true
+        });
+
+        const enemy = new THREE.Sprite(material);
+        enemy.position.x = next.x;
+        enemy.position.y = next.y;
+        enemy.scale.set(1, 0.8, 1);
+        enemy.userData = { row: next.row, col: next.col };
+
+        this.scene.add(enemy);
+        this.enemies.push(enemy);
+    }
+
+    startWaveSpawning() {
+        this.enemies.forEach(enemy => this.scene.remove(enemy));
+        this.enemies = [];
+        this.enemySpawnQueue = this.buildEnemySpawnQueue();
+        this.isSpawningWave = true;
+
+        // Spawn inicial (1 o 2)
+        this.spawnNextEnemyBatch();
+    }
+
+    spawnNextEnemyBatch() {
+        if (!this.isSpawningWave) return;
+        if (!this.enemySpawnQueue.length) {
+            this.isSpawningWave = false;
+            return;
+        }
+
+        const batch = Math.random() < 0.5 ? 1 : 2;
+        for (let i = 0; i < batch; i++) {
+            if (!this.enemySpawnQueue.length) break;
+            this.spawnEnemyFromQueue();
+        }
+
+        if (!this.enemySpawnQueue.length) {
+            this.isSpawningWave = false;
+        }
+    }
+
+    isWaveCleared() {
+        return this.enemies.length === 0 && (!this.enemySpawnQueue || this.enemySpawnQueue.length === 0) && !this.isSpawningWave;
     }
     
     createStarfield() {
@@ -289,16 +380,31 @@ export class Game {
         if (this.keys['ArrowRight'] || this.keys['KeyD']) {
             this.player.position.x += this.config.playerSpeed * deltaTime * 60;
         }
+        if (this.keys['ArrowUp'] || this.keys['KeyW']) {
+            this.player.position.y += this.config.playerSpeed * deltaTime * 60;
+        }
+        if (this.keys['ArrowDown'] || this.keys['KeyS']) {
+            this.player.position.y -= this.config.playerSpeed * deltaTime * 60;
+        }
         
         // Limitar al jugador dentro de los bordes de la pantalla
         const halfPlayerWidth = 0.4;
-        const rightBound = 5 - halfPlayerWidth;
-        const leftBound = -5 + halfPlayerWidth;
+        const rightBound = this.config.playfieldHalfWidth - halfPlayerWidth;
+        const leftBound = -this.config.playfieldHalfWidth + halfPlayerWidth;
+        const halfPlayerHeight = 0.3;
+        const topBound = this.config.playfieldHalfHeight - halfPlayerHeight;
+        const bottomBound = -this.config.playfieldHalfHeight + halfPlayerHeight;
         
         if (this.player.position.x > rightBound) {
             this.player.position.x = rightBound;
         } else if (this.player.position.x < leftBound) {
             this.player.position.x = leftBound;
+        }
+
+        if (this.player.position.y > topBound) {
+            this.player.position.y = topBound;
+        } else if (this.player.position.y < bottomBound) {
+            this.player.position.y = bottomBound;
         }
     }
     
@@ -329,6 +435,9 @@ export class Game {
                     // Eliminar el enemigo
                     this.scene.remove(enemy);
                     this.enemies.splice(i, 1);
+
+                    // Spawn de 1-2 enemigos extra por cada baja (si quedan en cola)
+                    this.spawnNextEnemyBatch();
                     
                     // Eliminar la bala
                     this.scene.remove(bullet.mesh);
@@ -339,7 +448,7 @@ export class Game {
                     document.getElementById('score').textContent = this.score;
                     
                     // Verificar si el jugador ganó
-                    if (this.enemies.length === 0) {
+                    if (this.isWaveCleared()) {
                         this.levelComplete();
                     }
                     
@@ -480,10 +589,10 @@ export class Game {
         this.waveBannerTimeout = setTimeout(() => {
             banner.textContent = `HORDA ${this.wave}`;
 
-            // Después de otros 1.5s: ocultar banner y crear enemigos
+            // Después de otros 1.5s: ocultar banner y comenzar spawn gradual
             this.waveBannerTimeout = setTimeout(() => {
                 banner.classList.add('hidden');
-                this.createEnemies();
+                this.startWaveSpawning();
             }, 1500);
         }, 1500);
     }
