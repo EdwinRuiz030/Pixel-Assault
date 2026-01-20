@@ -7,8 +7,13 @@ export class Game {
             height: window.innerHeight,
             playerSpeed: 0.5,
             bulletSpeed: 1,
+            enemyBulletSpeedMultiplier: 0.2,
             playfieldHalfWidth: 8,
             playfieldHalfHeight: 5.5,
+            enemyAnimCols: 4,
+            enemyAnimRows: 4,
+            enemyAnimFrames: 16,
+            enemyAnimFps: 12,
             enemySpeed: 0.1,
             enemyRows: 5,
             enemyCols: 10,
@@ -25,17 +30,32 @@ export class Game {
         this.lives = this.config.playerLives;
         this.gameOver = false;
         this.paused = false;
+
+        this.playerInvulnerableUntil = 0;
+        this.respawnTimeout = null;
+        this.enemySheetReady = false;
+        this.enemyGifReady = false;
+        this.enemyGifImg = null;
+        this.enemyGifCanvas = null;
+        this.enemyGifCtx = null;
+        this.enemyGifTexture = null;
         this.enemies = [];
         this.bullets = [];
         this.enemyDirection = 1;
         this.enemyMoveDown = false;
         this.lastEnemyMoveTime = 0;
         this.enemyMoveInterval = 1000; // ms
+        this.lastEnemyShootTime = 0;
+        this.enemyShootInterval = 300; // ms
+        this.enemyShootChance = 1;
         this.enemySpawnQueue = [];
         this.isSpawningWave = false;
         this.lastBulletTime = 0;
         this.bulletCooldown = 500; // ms
         this.keys = {};
+
+        this.playerInvulnerableUntil = 0;
+        this.respawnTimeout = null;
 
         // Cargador de texturas
         this.textureLoader = new THREE.TextureLoader();
@@ -108,8 +128,113 @@ export class Game {
         this.textures.alien1 = this.textureLoader.load('img/alien1.png');
         this.textures.alien2 = this.textureLoader.load('img/alien2.png');
         this.textures.alien3 = this.textureLoader.load('img/alien3.png');
+        this.textures.enemySheet = null;
+        this.enemySheetReady = false;
+        this.textureLoader.load(
+            'img/enemy_sheet.png',
+            (tex) => {
+                this.textures.enemySheet = tex;
+                this.enemySheetReady = true;
+            },
+            undefined,
+            () => {
+                this.textures.enemySheet = null;
+                this.enemySheetReady = false;
+            }
+        );
         this.textures.missilePlayer = this.textureLoader.load('img/missile_player.png');
         this.textures.missileAlien = this.textureLoader.load('img/missile_alien.png');
+        this.textures.explosion = this.textureLoader.load('img/explosion.png');
+
+        this.enemyGifReady = false;
+        this.enemyGifImg = new Image();
+        this.enemyGifImg.onload = () => {
+            this.enemyGifCanvas = document.createElement('canvas');
+            const w = this.enemyGifImg.naturalWidth || this.enemyGifImg.width || 64;
+            const h = this.enemyGifImg.naturalHeight || this.enemyGifImg.height || 64;
+            this.enemyGifCanvas.width = w;
+            this.enemyGifCanvas.height = h;
+            this.enemyGifCtx = this.enemyGifCanvas.getContext('2d');
+            this.enemyGifTexture = new THREE.CanvasTexture(this.enemyGifCanvas);
+            this.enemyGifTexture.needsUpdate = true;
+            this.enemyGifReady = true;
+        };
+        this.enemyGifImg.onerror = () => {
+            this.enemyGifReady = false;
+            this.enemyGifImg = null;
+            this.enemyGifCanvas = null;
+            this.enemyGifCtx = null;
+            this.enemyGifTexture = null;
+        };
+        this.enemyGifImg.src = 'img/spaceinvaders-videogames.gif';
+    }
+
+    updateEnemyGifTexture() {
+        if (!this.enemyGifReady || !this.enemyGifCtx || !this.enemyGifCanvas || !this.enemyGifImg || !this.enemyGifTexture) return;
+        this.enemyGifCtx.clearRect(0, 0, this.enemyGifCanvas.width, this.enemyGifCanvas.height);
+        this.enemyGifCtx.drawImage(this.enemyGifImg, 0, 0, this.enemyGifCanvas.width, this.enemyGifCanvas.height);
+        this.enemyGifTexture.needsUpdate = true;
+    }
+
+    createGifEnemyMaterial() {
+        if (!this.enemyGifReady || !this.enemyGifTexture) return null;
+        const mat = new THREE.SpriteMaterial({
+            map: this.enemyGifTexture,
+            transparent: true
+        });
+        mat.depthTest = false;
+        mat.depthWrite = false;
+        return mat;
+    }
+
+    createAnimatedEnemyMaterial() {
+        const base = this.textures.enemySheet;
+        const tex = base.clone();
+        tex.needsUpdate = true;
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+
+        const cols = this.config.enemyAnimCols;
+        const rows = this.config.enemyAnimRows;
+        tex.repeat.set(1 / cols, 1 / rows);
+        tex.offset.set(0, 1 - (1 / rows));
+
+        const mat = new THREE.SpriteMaterial({
+            map: tex,
+            transparent: true
+        });
+        mat.depthTest = false;
+        mat.depthWrite = false;
+
+        return { mat, tex };
+    }
+
+    updateEnemyAnimations(deltaTime) {
+        if (!this.enemies || !this.enemies.length) return;
+
+        const cols = this.config.enemyAnimCols;
+        const rows = this.config.enemyAnimRows;
+        const frames = this.config.enemyAnimFrames;
+        const fps = this.config.enemyAnimFps;
+        if (!cols || !rows || !frames || !fps) return;
+
+        for (const enemy of this.enemies) {
+            const anim = enemy.userData && enemy.userData.anim;
+            if (!anim) continue;
+
+            anim.acc += deltaTime;
+            const frameTime = 1 / fps;
+            while (anim.acc >= frameTime) {
+                anim.acc -= frameTime;
+                anim.frame = (anim.frame + 1) % frames;
+
+                const col = anim.frame % cols;
+                const row = Math.floor(anim.frame / cols) % rows;
+
+                anim.texture.offset.x = col / cols;
+                anim.texture.offset.y = 1 - ((row + 1) / rows);
+            }
+        }
     }
     
     createPlayer() {
@@ -160,14 +285,6 @@ export class Game {
         const startX = -((this.config.enemyCols - 1) * this.config.enemySpacing) / 2;
         const startY = 3;
 
-        const rowTextures = [
-            this.textures.alien1,
-            this.textures.alien2,
-            this.textures.alien3,
-            this.textures.alien1,
-            this.textures.alien2
-        ];
-
         const queue = [];
         for (let row = 0; row < this.config.enemyRows; row++) {
             for (let col = 0; col < this.config.enemyCols; col++) {
@@ -176,7 +293,7 @@ export class Game {
                     y: startY - row * this.config.enemySpacing * 0.7,
                     row,
                     col,
-                    texture: rowTextures[row % rowTextures.length]
+                    useSheet: true
                 });
             }
         }
@@ -196,16 +313,35 @@ export class Game {
         if (!this.enemySpawnQueue.length) return;
 
         const next = this.enemySpawnQueue.shift();
-        const material = new THREE.SpriteMaterial({
-            map: next.texture,
-            transparent: true
-        });
+
+        let material;
+        let tex;
+        const gifMat = this.createGifEnemyMaterial();
+        if (gifMat) {
+            material = gifMat;
+            tex = null;
+        } else if (next.useSheet && this.enemySheetReady && this.textures.enemySheet) {
+            const created = this.createAnimatedEnemyMaterial();
+            material = created.mat;
+            tex = created.tex;
+        } else {
+            const fallbackMap = this.textures.alien1 || this.textures.player;
+            material = new THREE.SpriteMaterial({ map: fallbackMap, transparent: true });
+            material.depthTest = false;
+            material.depthWrite = false;
+            tex = null;
+        }
 
         const enemy = new THREE.Sprite(material);
         enemy.position.x = next.x;
         enemy.position.y = next.y;
         enemy.scale.set(1, 0.8, 1);
         enemy.userData = { row: next.row, col: next.col };
+        enemy.renderOrder = 10;
+
+        if (tex) {
+            enemy.userData.anim = { texture: tex, frame: 0, acc: 0 };
+        }
 
         this.scene.add(enemy);
         this.enemies.push(enemy);
@@ -366,8 +502,9 @@ export class Game {
         this.scene.add(bullet);
         this.bullets.push({
             mesh: bullet,
-            direction: 1,
-            speed: this.config.bulletSpeed
+            owner: 'player',
+            vx: 0,
+            vy: this.config.bulletSpeed
         });
         
         // Aquí podrías agregar un sonido de disparo
@@ -411,10 +548,11 @@ export class Game {
     updateBullets(deltaTime) {
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const bullet = this.bullets[i];
-            bullet.mesh.position.y += bullet.speed * deltaTime * 60 * bullet.direction;
+            bullet.mesh.position.x += bullet.vx * deltaTime * 60;
+            bullet.mesh.position.y += bullet.vy * deltaTime * 60;
             
             // Eliminar balas que salen de la pantalla
-            if (bullet.mesh.position.y > 6 || bullet.mesh.position.y < -6) {
+            if (bullet.mesh.position.y > 6 || bullet.mesh.position.y < -6 || bullet.mesh.position.x > 12 || bullet.mesh.position.x < -12) {
                 this.scene.remove(bullet.mesh);
                 this.bullets.splice(i, 1);
                 continue;
@@ -427,7 +565,7 @@ export class Game {
     
     checkBulletCollisions(bullet, bulletIndex) {
         // Verificar colisión con enemigos (solo para balas del jugador)
-        if (bullet.direction > 0) {
+        if (bullet.owner === 'player') {
             for (let i = this.enemies.length - 1; i >= 0; i--) {
                 const enemy = this.enemies[i];
                 
@@ -455,7 +593,63 @@ export class Game {
                     break;
                 }
             }
+        } else if (bullet.owner === 'enemy') {
+            const now = Date.now();
+            if (now < this.playerInvulnerableUntil) return;
+            if (!this.player || !this.player.visible) return;
+
+            if (this.checkCollision(bullet.mesh, this.player)) {
+                this.scene.remove(bullet.mesh);
+                this.bullets.splice(bulletIndex, 1);
+                this.handlePlayerHit();
+            }
         }
+    }
+
+    handlePlayerHit() {
+        const now = Date.now();
+        if (now < this.playerInvulnerableUntil) return;
+
+        this.lives -= 1;
+        this.updateHUD();
+
+        this.bullets.forEach(b => this.scene.remove(b.mesh));
+        this.bullets = [];
+
+        if (this.player) {
+            const explosionMaterial = new THREE.SpriteMaterial({
+                map: this.textures.explosion,
+                transparent: true
+            });
+            const explosion = new THREE.Sprite(explosionMaterial);
+            explosion.position.x = this.player.position.x;
+            explosion.position.y = this.player.position.y;
+            explosion.scale.set(1.6, 1.6, 1);
+            this.scene.add(explosion);
+
+            this.player.visible = false;
+
+            setTimeout(() => {
+                this.scene.remove(explosion);
+            }, 450);
+        }
+
+        if (this.lives <= 0) {
+            this.gameOver = true;
+            this.showGameOver();
+            return;
+        }
+
+        this.playerInvulnerableUntil = Date.now() + 1400;
+        if (this.respawnTimeout) {
+            clearTimeout(this.respawnTimeout);
+        }
+        this.respawnTimeout = setTimeout(() => {
+            if (!this.player) return;
+            this.player.position.x = 0;
+            this.player.position.y = -4;
+            this.player.visible = true;
+        }, 700);
     }
     
     checkCollision(mesh1, mesh2) {
@@ -508,8 +702,19 @@ export class Game {
             this.enemyDirection *= -1;
         }
         
-        // Disparo aleatorio de enemigos
-        if (Math.random() < 0.02 && this.enemies.length > 0) {
+        // Disparo se maneja por un temporizador independiente
+    }
+
+    updateEnemyShooting() {
+        if (this.paused || this.gameOver) return;
+        if (!this.enemies || this.enemies.length === 0) return;
+
+        const now = Date.now();
+        if (this.lastEnemyShootTime && (now - this.lastEnemyShootTime < this.enemyShootInterval)) return;
+        this.lastEnemyShootTime = now;
+
+        // Probabilidad por tick, para que no sea demasiado agresivo
+        if (Math.random() <= this.enemyShootChance) {
             this.enemyShoot();
         }
     }
@@ -524,17 +729,29 @@ export class Game {
             map: this.textures.missileAlien,
             transparent: true
         });
+        bulletMaterial.depthTest = false;
+        bulletMaterial.depthWrite = false;
         const bullet = new THREE.Sprite(bulletMaterial);
         
         bullet.position.x = shooter.position.x;
         bullet.position.y = shooter.position.y - 0.7;
         bullet.scale.set(0.3, 0.6, 1);
+        bullet.renderOrder = 11;
         
         this.scene.add(bullet);
+
+        const targetX = this.player ? this.player.position.x : shooter.position.x;
+        const targetY = this.player ? this.player.position.y : (shooter.position.y - 10);
+        const dx = targetX - shooter.position.x;
+        const dy = targetY - shooter.position.y;
+        const len = Math.max(0.001, Math.sqrt(dx * dx + dy * dy));
+        const speed = this.config.bulletSpeed * this.config.enemyBulletSpeedMultiplier;
+
         this.bullets.push({
             mesh: bullet,
-            direction: -1, // Disparo hacia abajo
-            speed: this.config.bulletSpeed * 0.7
+            owner: 'enemy',
+            vx: (dx / len) * speed,
+            vy: (dy / len) * speed
         });
     }
     
@@ -546,7 +763,10 @@ export class Game {
         // Aumentar la dificultad
         this.enemyMoveInterval = Math.max(200, this.enemyMoveInterval - 50);
         this.config.enemySpeed += 0.02;
-        
+
+        // Aumentar ligeramente la cadencia de disparo
+        this.enemyShootInterval = Math.max(200, this.enemyShootInterval - 20);
+    
         // Iniciar secuencia de nueva horda (mensajes + aparición de enemigos)
         this.showWaveIntro();
     }
@@ -569,7 +789,10 @@ export class Game {
 
     showWaveIntro() {
         const banner = document.getElementById('wave-banner');
-        if (!banner) return;
+        if (!banner) {
+            this.startWaveSpawning();
+            return;
+        }
 
         // Limpiar enemigos existentes por seguridad
         this.enemies.forEach(enemy => this.scene.remove(enemy));
@@ -601,8 +824,11 @@ export class Game {
         if (this.paused || this.gameOver) return;
         
         this.updatePlayer(deltaTime);
+        this.updateEnemyGifTexture();
         this.updateBullets(deltaTime);
+        this.updateEnemyShooting();
         this.updateEnemies(deltaTime);
+        this.updateEnemyAnimations(deltaTime);
         this.updateParallax(deltaTime);
         this.updateHUD();
     }
@@ -644,6 +870,7 @@ export class Game {
         // Resetear posición del jugador
         this.player.position.x = 0;
         this.player.position.y = -4;
+        this.player.visible = true;
         
         // Iniciar bucle de animación
         this.lastFrameTime = null;
