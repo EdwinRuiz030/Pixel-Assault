@@ -5,9 +5,9 @@ export class Game {
         this.config = {
             width: window.innerWidth,
             height: window.innerHeight,
-            playerSpeed: 0.5,
-            bulletSpeed: 1,
-            enemyBulletSpeedMultiplier: 0.2,
+            playerSpeed: 0.3    ,
+            bulletSpeed: 2,
+            enemyBulletSpeedMultiplier: 0.1,
             playfieldHalfWidth: 8,
             playfieldHalfHeight: 5.5,
             enemyAnimCols: 4,
@@ -46,16 +46,13 @@ export class Game {
         this.lastEnemyMoveTime = 0;
         this.enemyMoveInterval = 1000; // ms
         this.lastEnemyShootTime = 0;
-        this.enemyShootInterval = 300; // ms
+        this.enemyShootInterval = 800; // ms
         this.enemyShootChance = 1;
         this.enemySpawnQueue = [];
         this.isSpawningWave = false;
         this.lastBulletTime = 0;
-        this.bulletCooldown = 500; // ms
+        this.bulletCooldown = 100; // ms
         this.keys = {};
-
-        this.playerInvulnerableUntil = 0;
-        this.respawnTimeout = null;
 
         // Cargador de texturas
         this.textureLoader = new THREE.TextureLoader();
@@ -313,7 +310,6 @@ export class Game {
         if (!this.enemySpawnQueue.length) return;
 
         const next = this.enemySpawnQueue.shift();
-
         let material;
         let tex;
         const gifMat = this.createGifEnemyMaterial();
@@ -484,6 +480,9 @@ export class Game {
     }
     
     shoot() {
+        // No disparar si el jugador no está visible (está en respawn)
+        if (!this.player || !this.player.visible) return;
+        
         const now = Date.now();
         if (now - this.lastBulletTime < this.bulletCooldown) return;
         
@@ -507,10 +506,14 @@ export class Game {
             vy: this.config.bulletSpeed
         });
         
+        console.log('BALA CREADA - Velocidad:', this.config.bulletSpeed, 'Total balas:', this.bullets.length);
         // Aquí podrías agregar un sonido de disparo
     }
-    
+
     updatePlayer(deltaTime) {
+        // No mover al jugador si no está visible (está en respawn)
+        if (!this.player || !this.player.visible) return;
+        
         if (this.keys['ArrowLeft'] || this.keys['KeyA']) {
             this.player.position.x -= this.config.playerSpeed * deltaTime * 60;
         }
@@ -555,7 +558,6 @@ export class Game {
             if (bullet.mesh.position.y > 6 || bullet.mesh.position.y < -6 || bullet.mesh.position.x > 12 || bullet.mesh.position.x < -12) {
                 this.scene.remove(bullet.mesh);
                 this.bullets.splice(i, 1);
-                continue;
             }
             
             // Detección de colisiones
@@ -656,7 +658,14 @@ export class Game {
         // Detección de colisión simple usando bounding boxes
         const box1 = new THREE.Box3().setFromObject(mesh1);
         const box2 = new THREE.Box3().setFromObject(mesh2);
-        return box1.intersectsBox(box2);
+        const collision = box1.intersectsBox(box2);
+        
+        // Debug: mostrar si hay colisión
+        if (collision && mesh1.material && mesh1.material.map) {
+            console.log('COLISIÓN DETECTADA');
+        }
+        
+        return collision;
     }
     
     updateEnemies(deltaTime) {
@@ -701,8 +710,7 @@ export class Game {
         if (hitEdge) {
             this.enemyDirection *= -1;
         }
-        
-        // Disparo se maneja por un temporizador independiente
+          // Disparo se maneja por un temporizador independiente
     }
 
     updateEnemyShooting() {
@@ -763,7 +771,7 @@ export class Game {
         // Aumentar la dificultad
         this.enemyMoveInterval = Math.max(200, this.enemyMoveInterval - 50);
         this.config.enemySpeed += 0.02;
-
+    
         // Aumentar ligeramente la cadencia de disparo
         this.enemyShootInterval = Math.max(200, this.enemyShootInterval - 20);
     
