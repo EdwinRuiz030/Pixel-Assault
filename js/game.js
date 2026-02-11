@@ -6,8 +6,8 @@ export class Game {
             width: window.innerWidth,
             height: window.innerHeight,
             playerSpeed: 0.3    ,
-            bulletSpeed: 2,
-            enemyBulletSpeedMultiplier: 0.1,
+            arrowSpeed: 2,
+            enemyArrowSpeedMultiplier: 0.1,
             playfieldHalfWidth: 8,
             playfieldHalfHeight: 5.5,
             enemyAnimCols: 4,
@@ -40,7 +40,7 @@ export class Game {
         this.enemyGifCtx = null;
         this.enemyGifTexture = null;
         this.enemies = [];
-        this.bullets = [];
+        this.arrows = [];
         this.enemyDirection = 1;
         this.enemyMoveDown = false;
         this.lastEnemyMoveTime = 0;
@@ -50,8 +50,8 @@ export class Game {
         this.enemyShootChance = 1;
         this.enemySpawnQueue = [];
         this.isSpawningWave = false;
-        this.lastBulletTime = 0;
-        this.bulletCooldown = 100; // ms
+        this.lastArrowTime = 0;
+        this.arrowCooldown = 100; // ms
         this.keys = {};
 
         // Cargador de texturas
@@ -78,12 +78,20 @@ export class Game {
 
     initThree() {
         // Crear el renderizador
+        const canvas = document.getElementById('game-canvas');
+        console.log('Canvas encontrado:', canvas);
+        if (!canvas) {
+            console.error('No se encontró el canvas del juego');
+            return;
+        }
+        
         this.renderer = new THREE.WebGLRenderer({ 
-            canvas: document.getElementById('game-canvas'),
+            canvas: canvas,
             antialias: true 
         });
         this.renderer.setSize(this.config.width, this.config.height);
         this.renderer.setPixelRatio(window.devicePixelRatio);
+        console.log('Renderer creado:', this.renderer);
         
         // Crear la cámara
         this.camera = new THREE.PerspectiveCamera(
@@ -96,7 +104,7 @@ export class Game {
         
         // Crear la escena
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x000000);
+        this.scene.background = new THREE.Color(0x2a1810); // Marrón oscuro medieval
         
         // Agregar luces
         const ambientLight = new THREE.AmbientLight(0x404040);
@@ -121,26 +129,19 @@ export class Game {
     }
     
     loadTextures() {
-        this.textures.player = this.textureLoader.load('img/player.png');
-        this.textures.alien1 = this.textureLoader.load('img/alien1.png');
-        this.textures.alien2 = this.textureLoader.load('img/alien2.png');
-        this.textures.alien3 = this.textureLoader.load('img/alien3.png');
-        this.textures.enemySheet = null;
-        this.enemySheetReady = false;
-        this.textureLoader.load(
-            'img/enemy_sheet.png',
-            (tex) => {
-                this.textures.enemySheet = tex;
-                this.enemySheetReady = true;
-            },
+        this.textures.warrior = this.textureLoader.load('img/warrior.png', 
+            (texture) => console.log('Textura warrior cargada'),
             undefined,
-            () => {
-                this.textures.enemySheet = null;
-                this.enemySheetReady = false;
-            }
+            (error) => console.error('Error cargando warrior:', error)
         );
-        this.textures.missilePlayer = this.textureLoader.load('img/missile_player.png');
-        this.textures.missileAlien = this.textureLoader.load('img/missile_alien.png');
+        this.textures.soldier1 = this.textureLoader.load('img/soldier1.png');
+        this.textures.soldier2 = this.textureLoader.load('img/soldier2.png');
+        this.textures.soldier3 = this.textureLoader.load('img/soldier3.png');
+        // Usar texturas individuales en lugar de sprite sheet
+        this.textures.enemySheet = this.textures.soldier1; // Usar soldier1 como fallback
+        this.enemySheetReady = true;
+        this.textures.arrowPlayer = this.textureLoader.load('img/arrow_player.png');
+        this.textures.arrowEnemy = this.textureLoader.load('img/arrow_enemy.png');
         this.textures.explosion = this.textureLoader.load('img/explosion.png');
 
         this.enemyGifReady = false;
@@ -163,7 +164,7 @@ export class Game {
             this.enemyGifCtx = null;
             this.enemyGifTexture = null;
         };
-        this.enemyGifImg.src = 'img/spaceinvaders-videogames.gif';
+        this.enemyGifImg.src = 'img/medieval_battle.gif';
     }
 
     updateEnemyGifTexture() {
@@ -235,16 +236,20 @@ export class Game {
     }
     
     createPlayer() {
-        // Sprite del jugador
+        // Sprite del caballero medieval
         const material = new THREE.SpriteMaterial({ 
-            map: this.textures.player,
+            map: this.textures.warrior,
             transparent: true
         });
 
         this.player = new THREE.Sprite(material);
         this.player.position.y = -4;
-        this.player.scale.set(1.2, 0.9, 1); // tamaño del sprite
+        this.player.position.x = 0;
+        this.player.scale.set(1.5, 1.2, 1); // tamaño más grande y heroico
+        this.player.visible = true;
         this.scene.add(this.player);
+        
+        console.log('Caballero creado:', this.player.position, 'Visible:', this.player.visible);
     }
     
     createEnemies() {
@@ -252,24 +257,23 @@ export class Game {
         const startY = 3;
 
         const rowTextures = [
-            this.textures.alien1,
-            this.textures.alien2,
-            this.textures.alien3,
-            this.textures.alien1,
-            this.textures.alien2
+            this.textures.soldier1,
+            this.textures.soldier2,
+            this.textures.soldier3,
+            this.textures.soldier1,
+            this.textures.soldier2
         ];
         
         for (let row = 0; row < this.config.enemyRows; row++) {
             for (let col = 0; col < this.config.enemyCols; col++) {
                 const material = new THREE.SpriteMaterial({
-                    map: rowTextures[row % rowTextures.length],
+                    map: rowTextures[row],
                     transparent: true
                 });
-
                 const enemy = new THREE.Sprite(material);
                 enemy.position.x = startX + col * this.config.enemySpacing;
                 enemy.position.y = startY - row * this.config.enemySpacing * 0.7;
-                enemy.scale.set(1, 0.8, 1);
+                enemy.scale.set(1.2, 1.0, 1); // tamaño más medieval
                 enemy.userData = { row, col };
                 
                 this.scene.add(enemy);
@@ -321,7 +325,7 @@ export class Game {
             material = created.mat;
             tex = created.tex;
         } else {
-            const fallbackMap = this.textures.alien1 || this.textures.player;
+            const fallbackMap = this.textures.soldier1 || this.textures.warrior;
             material = new THREE.SpriteMaterial({ map: fallbackMap, transparent: true });
             material.depthTest = false;
             material.depthWrite = false;
@@ -376,11 +380,11 @@ export class Game {
     }
     
     createStarfield() {
-        // Tres capas de estrellas para efecto parallax
+        // Tres capas de partículas medievales para efecto parallax
         const layerConfigs = [
-            { count: 500, size: 0.06, depth: 80, speed: 3.0, color: 0x666666 }, // lejana
-            { count: 700, size: 0.09, depth: 60, speed: 5.0, color: 0xaaaaaa }, // media
-            { count: 900, size: 0.12, depth: 40, speed: 8.0, color: 0xffffff }  // cercana
+            { count: 300, size: 0.04, depth: 80, speed: 2.0, color: 0x8b4513 }, // marrón oscuro
+            { count: 400, size: 0.06, depth: 60, speed: 3.0, color: 0xd2691e }, // marrón medio
+            { count: 500, size: 0.08, depth: 40, speed: 5.0, color: 0xffd700 }  // dorado
         ];
 
         this.starfields = [];
@@ -452,7 +456,7 @@ export class Game {
             
             // Disparar con la barra espaciadora
             if (e.code === 'Space' && !this.paused && !this.gameOver) {
-                this.shoot();
+                this.shootArrow();
                 e.preventDefault();
             }
         });
@@ -475,41 +479,49 @@ export class Game {
     }
     
     togglePause() {
-        this.paused = !this.paused;
-        // Aquí podrías mostrar/ocultar un mensaje de pausa
+
+        this.enemies.forEach(enemy => this.scene.remove(enemy));
+        this.enemies = [];
+
+        this.arrows.forEach(a => this.scene.remove(a.mesh));
+        this.arrows = [];
+
+        if (this.player) {
+            const explosionMaterial = new THREE.SpriteMaterial({
+                map: this.textures.explosion,
+                transparent: true
+            });
+            const explosion = new THREE.Sprite(explosionMaterial);
+            explosion.position.x = this.player.position.x;
+            explosion.position.y = this.player.position.y;
+            explosion.scale.set(1.6, 1.6, 1);
+            this.scene.add(explosion);
+
+            this.player.visible = false;
+
+            setTimeout(() => {
+                this.scene.remove(explosion);
+            }, 450);
+        }
+
+        if (this.lives <= 0) {
+            this.gameOver = true;
+            this.showGameOver();
+            return;
+        }
+
+        this.playerInvulnerableUntil = Date.now() + 1400;
+        if (this.respawnTimeout) {
+            clearTimeout(this.respawnTimeout);
+        }
+        this.respawnTimeout = setTimeout(() => {
+            if (!this.player) return;
+            this.player.position.x = 0;
+            this.player.position.y = -4;
+            this.player.visible = true;
+        }, 700);
     }
     
-    shoot() {
-        // No disparar si el jugador no está visible (está en respawn)
-        if (!this.player || !this.player.visible) return;
-        
-        const now = Date.now();
-        if (now - this.lastBulletTime < this.bulletCooldown) return;
-        
-        this.lastBulletTime = now;
-        
-        const bulletMaterial = new THREE.SpriteMaterial({
-            map: this.textures.missilePlayer,
-            transparent: true
-        });
-        const bullet = new THREE.Sprite(bulletMaterial);
-        
-        bullet.position.x = this.player.position.x;
-        bullet.position.y = this.player.position.y + 0.7;
-        bullet.scale.set(0.3, 0.6, 1);
-        
-        this.scene.add(bullet);
-        this.bullets.push({
-            mesh: bullet,
-            owner: 'player',
-            vx: 0,
-            vy: this.config.bulletSpeed
-        });
-        
-        console.log('BALA CREADA - Velocidad:', this.config.bulletSpeed, 'Total balas:', this.bullets.length);
-        // Aquí podrías agregar un sonido de disparo
-    }
-
     updatePlayer(deltaTime) {
         // No mover al jugador si no está visible (está en respawn)
         if (!this.player || !this.player.visible) return;
@@ -548,30 +560,30 @@ export class Game {
         }
     }
     
-    updateBullets(deltaTime) {
-        for (let i = this.bullets.length - 1; i >= 0; i--) {
-            const bullet = this.bullets[i];
-            bullet.mesh.position.x += bullet.vx * deltaTime * 60;
-            bullet.mesh.position.y += bullet.vy * deltaTime * 60;
+    updateArrows(deltaTime) {
+        for (let i = this.arrows.length - 1; i >= 0; i--) {
+            const arrow = this.arrows[i];
+            arrow.mesh.position.x += arrow.vx * deltaTime * 60;
+            arrow.mesh.position.y += arrow.vy * deltaTime * 60;
             
-            // Eliminar balas que salen de la pantalla
-            if (bullet.mesh.position.y > 6 || bullet.mesh.position.y < -6 || bullet.mesh.position.x > 12 || bullet.mesh.position.x < -12) {
-                this.scene.remove(bullet.mesh);
-                this.bullets.splice(i, 1);
+            // Eliminar flechas que salen de la pantalla
+            if (arrow.mesh.position.y > 6 || arrow.mesh.position.y < -6 || arrow.mesh.position.x > 12 || arrow.mesh.position.x < -12) {
+                this.scene.remove(arrow.mesh);
+                this.arrows.splice(i, 1);
             }
             
             // Detección de colisiones
-            this.checkBulletCollisions(bullet, i);
+            this.checkArrowCollisions(arrow, i);
         }
     }
     
-    checkBulletCollisions(bullet, bulletIndex) {
-        // Verificar colisión con enemigos (solo para balas del jugador)
-        if (bullet.owner === 'player') {
+    checkArrowCollisions(arrow, arrowIndex) {
+        // Verificar colisión con enemigos (solo para flechas del jugador)
+        if (arrow.owner === 'player') {
             for (let i = this.enemies.length - 1; i >= 0; i--) {
                 const enemy = this.enemies[i];
                 
-                if (this.checkCollision(bullet.mesh, enemy)) {
+                if (this.checkCollision(arrow.mesh, enemy)) {
                     // Eliminar el enemigo
                     this.scene.remove(enemy);
                     this.enemies.splice(i, 1);
@@ -579,9 +591,9 @@ export class Game {
                     // Spawn de 1-2 enemigos extra por cada baja (si quedan en cola)
                     this.spawnNextEnemyBatch();
                     
-                    // Eliminar la bala
-                    this.scene.remove(bullet.mesh);
-                    this.bullets.splice(bulletIndex, 1);
+                    // Eliminar la flecha
+                    this.scene.remove(arrow.mesh);
+                    this.arrows.splice(arrowIndex, 1);
                     
                     // Actualizar puntuación
                     this.score += this.config.pointsPerEnemy;
@@ -595,14 +607,14 @@ export class Game {
                     break;
                 }
             }
-        } else if (bullet.owner === 'enemy') {
+        } else if (arrow.owner === 'enemy') {
             const now = Date.now();
             if (now < this.playerInvulnerableUntil) return;
             if (!this.player || !this.player.visible) return;
 
-            if (this.checkCollision(bullet.mesh, this.player)) {
-                this.scene.remove(bullet.mesh);
-                this.bullets.splice(bulletIndex, 1);
+            if (this.checkCollision(arrow.mesh, this.player)) {
+                this.scene.remove(arrow.mesh);
+                this.arrows.splice(arrowIndex, 1);
                 this.handlePlayerHit();
             }
         }
@@ -615,8 +627,8 @@ export class Game {
         this.lives -= 1;
         this.updateHUD();
 
-        this.bullets.forEach(b => this.scene.remove(b.mesh));
-        this.bullets = [];
+        this.arrows.forEach(a => this.scene.remove(a.mesh));
+        this.arrows = [];
 
         if (this.player) {
             const explosionMaterial = new THREE.SpriteMaterial({
@@ -660,10 +672,10 @@ export class Game {
         const box2 = new THREE.Box3().setFromObject(mesh2);
         const collision = box1.intersectsBox(box2);
         
-        // Debug: mostrar si hay colisión
-        if (collision && mesh1.material && mesh1.material.map) {
-            console.log('COLISIÓN DETECTADA');
-        }
+        // Debug: mostrar si hay colisión (desactivado para reducir spam)
+        // if (collision && mesh1.material && mesh1.material.map) {
+        //     console.log('COLISIÓN DETECTADA');
+        // }
         
         return collision;
     }
@@ -733,30 +745,30 @@ export class Game {
         // Seleccionar un enemigo aleatorio para disparar
         const shooter = this.enemies[Math.floor(Math.random() * this.enemies.length)];
         
-        const bulletMaterial = new THREE.SpriteMaterial({
-            map: this.textures.missileAlien,
+        const arrowMaterial = new THREE.SpriteMaterial({
+            map: this.textures.arrowEnemy,
             transparent: true
         });
-        bulletMaterial.depthTest = false;
-        bulletMaterial.depthWrite = false;
-        const bullet = new THREE.Sprite(bulletMaterial);
+        arrowMaterial.depthTest = false;
+        arrowMaterial.depthWrite = false;
+        const arrow = new THREE.Sprite(arrowMaterial);
         
-        bullet.position.x = shooter.position.x;
-        bullet.position.y = shooter.position.y - 0.7;
-        bullet.scale.set(0.3, 0.6, 1);
-        bullet.renderOrder = 11;
+        arrow.position.x = shooter.position.x;
+        arrow.position.y = shooter.position.y - 0.7;
+        arrow.scale.set(0.3, 0.6, 1);
+        arrow.renderOrder = 11;
         
-        this.scene.add(bullet);
+        this.scene.add(arrow);
 
         const targetX = this.player ? this.player.position.x : shooter.position.x;
         const targetY = this.player ? this.player.position.y : (shooter.position.y - 10);
         const dx = targetX - shooter.position.x;
         const dy = targetY - shooter.position.y;
         const len = Math.max(0.001, Math.sqrt(dx * dx + dy * dy));
-        const speed = this.config.bulletSpeed * this.config.enemyBulletSpeedMultiplier;
+        const speed = this.config.arrowSpeed * this.config.enemyArrowSpeedMultiplier;
 
-        this.bullets.push({
-            mesh: bullet,
+        this.arrows.push({
+            mesh: arrow,
             owner: 'enemy',
             vx: (dx / len) * speed,
             vy: (dy / len) * speed
@@ -833,7 +845,7 @@ export class Game {
         
         this.updatePlayer(deltaTime);
         this.updateEnemyGifTexture();
-        this.updateBullets(deltaTime);
+        this.updateArrows(deltaTime);
         this.updateEnemyShooting();
         this.updateEnemies(deltaTime);
         this.updateEnemyAnimations(deltaTime);
@@ -853,11 +865,28 @@ export class Game {
         this.update(deltaTime);
         
         // Renderizar la escena
-        this.renderer.render(this.scene, this.camera);
+        if (this.renderer && this.scene && this.camera) {
+            this.renderer.render(this.scene, this.camera);
+        } else {
+            console.error('Faltan componentes para renderizar:', {
+                renderer: !!this.renderer,
+                scene: !!this.scene,
+                camera: !!this.camera
+            });
+        }
     }
     
     start() {
-        // Reiniciar estado del juego
+        console.log('Iniciando juego...');
+        
+        // Limpiar enemigos y balas existentes
+        this.enemies.forEach(enemy => this.scene.remove(enemy));
+        this.enemies = [];
+        
+        this.arrows.forEach(arrow => this.scene.remove(arrow.mesh));
+        this.arrows = [];
+
+        // Resetear estado del juego
         this.score = 0;
         this.level = 1;
         this.wave = 1;
@@ -865,23 +894,20 @@ export class Game {
         this.gameOver = false;
         this.paused = false;
         
-        // Limpiar enemigos y balas existentes
-        this.enemies.forEach(enemy => this.scene.remove(enemy));
-        this.enemies = [];
-        
-        this.bullets.forEach(bullet => this.scene.remove(bullet.mesh));
-        this.bullets = [];
-
         // Mostrar secuencia de horda inicial (sin enemigos al principio)
         this.showWaveIntro();
         
         // Resetear posición del jugador
-        this.player.position.x = 0;
-        this.player.position.y = -4;
-        this.player.visible = true;
+        if (this.player) {
+            this.player.position.x = 0;
+            this.player.position.y = -4;
+            this.player.visible = true;
+            console.log('Jugador reseteado:', this.player.position);
+        }
         
         // Iniciar bucle de animación
         this.lastFrameTime = null;
+        console.log('Iniciando animación...');
         this.animate(0);
     }
     
