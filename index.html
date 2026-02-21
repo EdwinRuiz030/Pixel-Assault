@@ -15,9 +15,17 @@
             </video>
             <canvas id="menu-canvas"></canvas>
             <div class="menu-content">
-                <h1>PIXEL ASSAULT</h1>
-                <button id="start-btn">JUGAR</button>
-                <button id="controls-btn">CONTROLES</button>
+                <h1 data-text="PIXEL ASSAULT">PIXEL ASSAULT</h1>
+                <button id="start-btn" class="button-13" role="button">
+                    <span class="text">JUGAR</span>
+                    <span class="button-13-background"></span>
+                    <span class="button-13-border"></span>
+                </button>
+                <button id="controls-btn" class="button-13" role="button">
+                    <span class="text">CONTROLES</span>
+                    <span class="button-13-background"></span>
+                    <span class="button-13-border"></span>
+                </button>
             </div>
         </div>
         
@@ -33,11 +41,18 @@
         </div>
         
         <div id="controls" class="screen hidden">
-            <h2>CONTROLES</h2>
-            <p>← → : Mover nave</p>
-            <p>ESPACIO: Disparar</p>
-            <p>P: Pausar</p>
-            <button id="back-to-menu">VOLVER AL MENÚ</button>
+            <h2>CONTROLES - HERACULES</h2>
+            <p>⬅️ ➡️ : Mover izquierda/derecha</p>
+            <p>A D : Mover izquierda/derecha</p>
+            <p>⬆️ W ESPACIO : Saltar</p>
+            <p>⬇️ S : Agacharse</p>
+            <p>F : Ataque especial</p>
+            <p>P : Pausar juego</p>
+            <button id="back-to-menu" class="button-13" role="button">
+                <span class="text">VOLVER AL MENÚ</span>
+                <span class="button-13-background"></span>
+                <span class="button-13-border"></span>
+            </button>
         </div>
         
         <div id="game-over" class="screen hidden">
@@ -47,6 +62,17 @@
             <button id="main-menu">MENÚ PRINCIPAL</button>
         </div>
     </div>
+
+    <!-- SVG para filtros de botones -->
+    <svg style="position: absolute;" width="0" height="0">
+        <filter id="remove-black-button-13" color-interpolation-filters="sRGB">
+            <feColorMatrix type="matrix" values="1 0 0 0 0
+                      0 1 0 0 0
+                      0 0 1 0 0
+                      -1 -1 -1 0 1" result="black-pixels"></feColorMatrix>
+            <feComposite in="SourceGraphic" in2="black-pixels" operator="out"></feComposite>
+        </filter>
+    </svg>
 
     <!-- Three.js -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>

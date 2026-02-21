@@ -1,11 +1,14 @@
 // Clase principal del juego
 export class Game {
     constructor() {
-        // Configuración del juego
+        // Configuración del juego tipo plataformas
         this.config = {
             width: window.innerWidth,
             height: window.innerHeight,
-            playerSpeed: 0.3    ,
+            playerSpeed: 0.4,           // Movimiento horizontal
+            jumpPower: 0.8,              // Fuerza de salto
+            gravity: 0.02,               // Gravedad
+            groundLevel: -4,             // Nivel del suelo
             arrowSpeed: 2,
             enemyArrowSpeedMultiplier: 0.1,
             playfieldHalfWidth: 8,
@@ -30,6 +33,12 @@ export class Game {
         this.lives = this.config.playerLives;
         this.gameOver = false;
         this.paused = false;
+
+        // Estado del jugador (plataformas)
+        this.playerVelocity = { x: 0, y: 0 };
+        this.isJumping = false;
+        this.isDucking = false;
+        this.isGrounded = true;
 
         this.playerInvulnerableUntil = 0;
         this.respawnTimeout = null;
@@ -62,18 +71,36 @@ export class Game {
         this.starfields = [];
 
         // Inicializar Three.js
-        this.initThree();
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(
+            75, 
+            window.innerWidth / window.innerHeight, 
+            0.1, 
+            1000
+        );
+        this.renderer = new THREE.WebGLRenderer({ 
+            canvas: document.getElementById('game-canvas'),
+            antialias: true 
+        });
+        this.renderer.setSize(this.config.width, this.config.height);
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.camera.position.z = 10;
+        this.scene.background = new THREE.Color(0x654321); // Marrón medieval
         
-        // Inicializar la escena del juego
-        this.initScene();
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        this.scene.add(ambientLight);
         
-        // Configurar controles
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(1, 1, 1);
+        this.scene.add(directionalLight);
+
+        this.loadTextures();
+        this.createPlayer();
+        this.createStarfield();
         this.setupControls();
-        
-        // Configurar el bucle de animación
-        this.animate = this.animate.bind(this);
-        this.animationId = null;
-        this.waveBannerTimeout = null;
+        this.updateHUD();
+        this.showWaveIntro();
+        this.animate(0);
     }
 
     initThree() {
@@ -236,20 +263,89 @@ export class Game {
     }
     
     createPlayer() {
-        // Sprite del caballero medieval
+        // Para GIFs animados, necesitamos usar un canvas
+        this.heraclesImg = new Image();
+        this.heraclesImg.onload = () => {
+            console.log('Imagen Heracles cargada, creando canvas...');
+            this.createHeraclesFromCanvas();
+        };
+        this.heraclesImg.onerror = () => {
+            console.error('Error cargando imagen Heracles, usando fallback');
+            this.createFallbackPlayer();
+        };
+        this.heraclesImg.src = 'img/Heracles.gif';
+    }
+    
+    createHeraclesFromCanvas() {
+        // Crear canvas para el GIF animado
+        this.heraclesCanvas = document.createElement('canvas');
+        const ctx = this.heraclesCanvas.getContext('2d');
+        
+        // Establecer tamaño del canvas
+        this.heraclesCanvas.width = this.heraclesImg.width || 64;
+        this.heraclesCanvas.height = this.heraclesImg.height || 64;
+        
+        // Dibujar la imagen en el canvas
+        ctx.drawImage(this.heraclesImg, 0, 0);
+        
+        // Crear textura desde el canvas
+        const texture = new THREE.CanvasTexture(this.heraclesCanvas);
+        texture.needsUpdate = true;
+        
+        // Crear sprite con la textura del canvas
+        const material = new THREE.SpriteMaterial({ 
+            map: texture,
+            transparent: true
+        });
+
+        this.player = new THREE.Sprite(material);
+        this.player.position.y = this.config.groundLevel;
+        this.player.position.x = 0;
+        this.player.scale.set(2.0, 2.0, 1);
+        this.player.visible = true;
+        this.scene.add(this.player);
+        
+        console.log('Heracles desde canvas creado:', this.player.position, 'Visible:', this.player.visible);
+        
+        // Guardar referencias para animación
+        this.heraclesTexture = texture;
+        this.heraclesCtx = ctx;
+        
+        // Iniciar animación del GIF
+        this.animateHeracles();
+    }
+    
+    animateHeracles() {
+        if (!this.heraclesCanvas || !this.heraclesCtx || !this.heraclesImg) return;
+        
+        // Redibujar el GIF en el canvas
+        this.heraclesCtx.clearRect(0, 0, this.heraclesCanvas.width, this.heraclesCanvas.height);
+        this.heraclesCtx.drawImage(this.heraclesImg, 0, 0);
+        
+        // Actualizar textura
+        if (this.heraclesTexture) {
+            this.heraclesTexture.needsUpdate = true;
+        }
+        
+        // Continuar animación
+        requestAnimationFrame(() => this.animateHeracles());
+    }
+    
+    createFallbackPlayer() {
+        console.log('Creando jugador fallback con warrior.png');
         const material = new THREE.SpriteMaterial({ 
             map: this.textures.warrior,
             transparent: true
         });
 
         this.player = new THREE.Sprite(material);
-        this.player.position.y = -4;
+        this.player.position.y = this.config.groundLevel;
         this.player.position.x = 0;
-        this.player.scale.set(1.5, 1.2, 1); // tamaño más grande y heroico
+        this.player.scale.set(2.0, 2.0, 1);
         this.player.visible = true;
         this.scene.add(this.player);
         
-        console.log('Caballero creado:', this.player.position, 'Visible:', this.player.visible);
+        console.log('Jugador fallback creado:', this.player.position, 'Visible:', this.player.visible);
     }
     
     createEnemies() {
@@ -454,9 +550,9 @@ export class Game {
                 this.togglePause();
             }
             
-            // Disparar con la barra espaciadora
-            if (e.code === 'Space' && !this.paused && !this.gameOver) {
-                this.shootArrow();
+            // Ataque especial (cambio de disparo por ataque)
+            if (e.code === 'KeyF' && !this.paused && !this.gameOver) {
+                this.performAttack();
                 e.preventDefault();
             }
         });
@@ -526,37 +622,61 @@ export class Game {
         // No mover al jugador si no está visible (está en respawn)
         if (!this.player || !this.player.visible) return;
         
+        // Movimiento horizontal
         if (this.keys['ArrowLeft'] || this.keys['KeyA']) {
-            this.player.position.x -= this.config.playerSpeed * deltaTime * 60;
-        }
-        if (this.keys['ArrowRight'] || this.keys['KeyD']) {
-            this.player.position.x += this.config.playerSpeed * deltaTime * 60;
-        }
-        if (this.keys['ArrowUp'] || this.keys['KeyW']) {
-            this.player.position.y += this.config.playerSpeed * deltaTime * 60;
-        }
-        if (this.keys['ArrowDown'] || this.keys['KeyS']) {
-            this.player.position.y -= this.config.playerSpeed * deltaTime * 60;
+            this.playerVelocity.x = -this.config.playerSpeed;
+        } else if (this.keys['ArrowRight'] || this.keys['KeyD']) {
+            this.playerVelocity.x = this.config.playerSpeed;
+        } else {
+            this.playerVelocity.x *= 0.8; // Fricción
         }
         
-        // Limitar al jugador dentro de los bordes de la pantalla
-        const halfPlayerWidth = 0.4;
-        const rightBound = this.config.playfieldHalfWidth - halfPlayerWidth;
-        const leftBound = -this.config.playfieldHalfWidth + halfPlayerWidth;
-        const halfPlayerHeight = 0.3;
-        const topBound = this.config.playfieldHalfHeight - halfPlayerHeight;
-        const bottomBound = -this.config.playfieldHalfHeight + halfPlayerHeight;
-        
-        if (this.player.position.x > rightBound) {
-            this.player.position.x = rightBound;
-        } else if (this.player.position.x < leftBound) {
-            this.player.position.x = leftBound;
+        // Salto (solo si está en el suelo)
+        if ((this.keys['ArrowUp'] || this.keys['KeyW'] || this.keys['Space']) && this.isGrounded && !this.isJumping) {
+            this.playerVelocity.y = this.config.jumpPower;
+            this.isJumping = true;
+            this.isGrounded = false;
         }
-
-        if (this.player.position.y > topBound) {
-            this.player.position.y = topBound;
-        } else if (this.player.position.y < bottomBound) {
-            this.player.position.y = bottomBound;
+        
+        // Agacharse
+        this.isDucking = (this.keys['ArrowDown'] || this.keys['KeyS']) && this.isGrounded;
+        
+        // Aplicar gravedad
+        if (!this.isGrounded) {
+            this.playerVelocity.y -= this.config.gravity;
+        }
+        
+        // Actualizar posición
+        this.player.position.x += this.playerVelocity.x * deltaTime * 60;
+        this.player.position.y += this.playerVelocity.y * deltaTime * 60;
+        
+        // Verificar suelo
+        if (this.player.position.y <= this.config.groundLevel) {
+            this.player.position.y = this.config.groundLevel;
+            this.playerVelocity.y = 0;
+            this.isGrounded = true;
+            this.isJumping = false;
+        }
+        
+        // Límites horizontales
+        const maxX = this.config.playfieldHalfWidth;
+        const minX = -this.config.playfieldHalfWidth;
+        this.player.position.x = Math.max(minX, Math.min(maxX, this.player.position.x));
+        
+        // Ajustar sprite según estado
+        if (this.isDucking) {
+            this.player.scale.y = 1.0; // Reducir altura al agacharse
+            this.player.scale.x = 2.0;
+        } else {
+            this.player.scale.y = 2.0; // Altura normal
+            this.player.scale.x = 2.0;
+        }
+        
+        // Efecto de inclinación al moverse
+        if (Math.abs(this.playerVelocity.x) > 0.1) {
+            this.player.rotation.z = Math.max(-0.2, Math.min(0.2, -this.playerVelocity.x * 0.3));
+        } else {
+            this.player.rotation.z *= 0.9; // Volver a posición neutral
         }
     }
     
@@ -775,6 +895,76 @@ export class Game {
         });
     }
     
+    performAttack() {
+        if (!this.player || !this.player.visible) return;
+        
+        const now = Date.now();
+        if (this.lastArrowTime && (now - this.lastArrowTime < this.arrowCooldown)) return;
+        this.lastArrowTime = now;
+        
+        // Crear efecto de ataque (golpe)
+        const attackRange = 2.0;
+        const attackWidth = 1.5;
+        
+        // Verificar si hay enemigos en rango de ataque
+        for (let i = this.enemies.length - 1; i >= 0; i--) {
+            const enemy = this.enemies[i];
+            const distance = Math.abs(enemy.position.x - this.player.position.x);
+            const verticalDistance = Math.abs(enemy.position.y - this.player.position.y);
+            
+            if (distance < attackRange && verticalDistance < attackWidth) {
+                // Eliminar enemigo
+                this.scene.remove(enemy);
+                this.enemies.splice(i, 1);
+                
+                // Spawn de nuevos enemigos
+                this.spawnNextEnemyBatch();
+                
+                // Actualizar puntuación
+                this.score += this.config.pointsPerEnemy;
+                document.getElementById('score').textContent = this.score;
+                
+                // Crear efecto de impacto
+                this.createAttackEffect(enemy.position);
+                
+                // Verificar si el jugador ganó
+                if (this.isWaveCleared()) {
+                    this.levelComplete();
+                }
+                
+                break; // Solo atacar a un enemigo a la vez
+            }
+        }
+    }
+    
+    createAttackEffect(position) {
+        // Crear efecto visual de ataque
+        const effectMaterial = new THREE.SpriteMaterial({
+            color: 0xffd700, // Dorado
+            transparent: true,
+            opacity: 0.8
+        });
+        const effect = new THREE.Sprite(effectMaterial);
+        effect.position.copy(position);
+        effect.scale.set(1.5, 1.5, 1);
+        this.scene.add(effect);
+        
+        // Animar y eliminar efecto
+        let scale = 1.5;
+        const animate = () => {
+            scale += 0.1;
+            effect.scale.set(scale, scale, 1);
+            effect.material.opacity -= 0.05;
+            
+            if (effect.material.opacity > 0) {
+                requestAnimationFrame(animate);
+            } else {
+                this.scene.remove(effect);
+            }
+        };
+        animate();
+    }
+    
     levelComplete() {
         this.level++;
         this.wave = this.level;
@@ -854,7 +1044,7 @@ export class Game {
     }
     
     animate(time) {
-        this.animationId = requestAnimationFrame(this.animate);
+        this.animationId = requestAnimationFrame((t) => this.animate(t));
         
         // Calcular deltaTime para movimiento suave independiente de la tasa de fotogramas
         if (!this.lastFrameTime) this.lastFrameTime = time;

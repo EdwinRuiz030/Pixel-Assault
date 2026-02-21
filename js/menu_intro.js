@@ -1,12 +1,9 @@
-// Animación del menú: caballero viajando por el reino medieval
+// Animación del menú: solo video de fondo medieval
 
 // Usamos Three.js global cargado en index.html
 
-let scene, camera, renderer, knight, particles;
+let scene, camera, renderer;
 let animationId = null;
-let state = 'idle'; // 'idle', 'entering', 'loop', 'exiting'
-let stateStartTime = 0;
-let exitCallback = null;
 
 function init() {
     const canvas = document.getElementById('menu-canvas');
@@ -15,7 +12,7 @@ function init() {
     // Verificar si existe el video y activar la clase
     const video = document.getElementById('video-background');
     if (video) {
-        console.log('Video encontrado:', video.src);
+        console.log('Video encontrado:', video.src || video.currentSrc);
         
         video.addEventListener('loadeddata', () => {
             console.log('Video cargado correctamente');
@@ -26,7 +23,7 @@ function init() {
         
         video.addEventListener('error', (e) => {
             console.log('Error al cargar video:', e);
-            console.log('Usando imagen de fondo como fallback');
+            console.log('Usando fondo negro como fallback');
         });
         
         // Intentar reproducir inmediatamente
@@ -54,8 +51,6 @@ function init() {
     );
     camera.position.z = 15;
 
-    // No crear partículas ni caballero - solo video de fondo
-    
     // Ajustar tamaño del renderer
     function onResize() {
         const width = window.innerWidth;
@@ -71,21 +66,6 @@ function init() {
     animate();
 }
 
-function startEntrance() {
-    state = 'entering';
-    stateStartTime = performance.now();
-    knight.position.x = -12; // fuera a la izquierda
-    knight.position.y = -2;
-    knight.material.rotation = 0;
-    animate(performance.now());
-}
-
-function startExit(callback) {
-    state = 'exiting';
-    stateStartTime = performance.now();
-    exitCallback = callback;
-}
-
 function animate(time = 0) {
     animationId = requestAnimationFrame(animate);
     
@@ -94,11 +74,11 @@ function animate(time = 0) {
 }
 
 function startEntrance() {
-    // No hacer nada - no hay caballero que animar
+    // No hacer nada - no hay elementos que animar
 }
 
 function startExit(callback) {
-    // No hacer nada - no hay caballero que animar
+    // No hacer nada - no hay elementos que animar
     if (callback) callback();
 }
 
