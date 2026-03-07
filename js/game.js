@@ -1,6 +1,29 @@
 // Clase principal del juego
 export class Game {
     constructor() {
+        console.log('=== INICIO CONSTRUCTOR GAME ===');
+        
+        // PRUEBA SIMPLE: Verificar si el canvas existe
+        const testCanvas = document.getElementById('game-canvas');
+        console.log('Canvas test:', testCanvas);
+        if (testCanvas) {
+            console.log('Canvas width:', testCanvas.width);
+            console.log('Canvas height:', testCanvas.height);
+            console.log('Canvas style:', testCanvas.style.width, testCanvas.style.height);
+            
+            // Dibujar algo directamente en el canvas para probar
+            const ctx = testCanvas.getContext('2d');
+            if (ctx) {
+                ctx.fillStyle = 'black';
+                ctx.fillRect(50, 50, 100, 100);
+                console.log('Rectángulo rojo dibujado directamente en canvas');
+            } else {
+                console.error('No se pudo obtener contexto 2D del canvas');
+            }
+        } else {
+            console.error('Canvas no encontrado');
+        }
+        
         // Configuración del juego tipo plataformas
         this.config = {
             width: window.innerWidth,
@@ -25,6 +48,8 @@ export class Game {
             playerLives: 3,
             pointsPerEnemy: 100
         };
+
+        console.log('Configuración inicializada - Dimensiones:', this.config.width, 'x', this.config.height);
 
         // Estado del juego
         this.score = 0;
@@ -69,41 +94,41 @@ export class Game {
 
         // Capas de parallax
         this.starfields = [];
-
-        // Inicializar Three.js
-        this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(
-            75, 
-            window.innerWidth / window.innerHeight, 
-            0.1, 
-            1000
-        );
-        this.renderer = new THREE.WebGLRenderer({ 
-            canvas: document.getElementById('game-canvas'),
-            antialias: true 
-        });
-        this.renderer.setSize(this.config.width, this.config.height);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
-        this.camera.position.z = 10;
-        this.scene.background = new THREE.Color(0x654321); // Marrón medieval
         
-        const ambientLight = new THREE.AmbientLight(0x404040);
-        this.scene.add(ambientLight);
+        // Usar Canvas 2D en lugar de Three.js
+        this.useCanvas2D = true;
+        this.canvas2D = document.getElementById('game-canvas');
+        this.ctx2D = this.canvas2D.getContext('2d');
         
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(1, 1, 1);
-        this.scene.add(directionalLight);
+        // Configurar canvas 2D
+        this.canvas2D.width = this.config.width;
+        this.canvas2D.height = this.config.height;
+        
+        console.log('Canvas 2D configurado - Dimensiones:', this.canvas2D.width, 'x', this.canvas2D.height);
 
-        this.loadTextures();
-        this.createPlayer();
+        // Jugador simple para Canvas 2D
+        this.player2D = {
+            x: this.config.width / 2,
+            y: this.config.height / 2,
+            width: 64,
+            height: 64,
+            color: '#FFD700', // Dorado
+            visible: true
+        };
+
+        // Inicializar solo lo necesario para Canvas 2D
         this.createStarfield();
         this.setupControls();
         this.updateHUD();
         this.showWaveIntro();
-        this.animate(0);
+        this.animate2D();
+        
+        console.log('Constructor Game completado - Canvas 2D mode');
     }
 
     initThree() {
+        console.log('=== INIT THREE INICIADO ===');
+        
         // Crear el renderizador
         const canvas = document.getElementById('game-canvas');
         console.log('Canvas encontrado:', canvas);
@@ -116,11 +141,7 @@ export class Game {
             canvas: canvas,
             antialias: true 
         });
-        this.renderer.setSize(this.config.width, this.config.height);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
-        console.log('Renderer creado:', this.renderer);
         
-        // Crear la cámara
         this.camera = new THREE.PerspectiveCamera(
             75, 
             this.config.width / this.config.height, 
@@ -129,9 +150,15 @@ export class Game {
         );
         this.camera.position.z = 10;
         
+        console.log('Cámara configurada - Posición:', this.camera.position.x, this.camera.position.y, this.camera.position.z);
+        console.log('Cámara FOV:', this.camera.fov);
+        console.log('Cámara aspect:', this.camera.aspect);
+        
         // Crear la escena
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x2a1810); // Marrón oscuro medieval
+        this.scene.background = new THREE.Color(0x808080); // Gris
+        
+        console.log('Escena creada - Fondo gris');
         
         // Agregar luces
         const ambientLight = new THREE.AmbientLight(0x404040);
@@ -140,6 +167,25 @@ export class Game {
         const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
         directionalLight.position.set(1, 1, 1);
         this.scene.add(directionalLight);
+        
+        console.log('Luces añadidas a la escena');
+        
+        // Configurar renderer
+        this.renderer.setSize(this.config.width, this.config.height);
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+        
+        console.log('Renderer configurado - Canvas encontrado:', !!document.getElementById('game-canvas'));
+        console.log('Renderer dimensiones:', this.config.width, 'x', this.config.height);
+        
+        // Verificar que el canvas existe y tiene dimensiones
+        if (canvas) {
+            console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+            console.log('Canvas style:', canvas.style.width, 'x', canvas.style.height);
+        } else {
+            console.error('ERROR: Canvas no encontrado');
+        }
+        
+        console.log('=== INIT THREE COMPLETADO ===');
     }
     
     initScene() {
@@ -156,11 +202,13 @@ export class Game {
     }
     
     loadTextures() {
-        this.textures.warrior = this.textureLoader.load('img/warrior.png', 
-            (texture) => console.log('Textura warrior cargada'),
-            undefined,
-            (error) => console.error('Error cargando warrior:', error)
-        );
+        // No cargar warrior.png ya que no existe
+        // this.textures.warrior = this.textureLoader.load('img/warrior.png', 
+        //     (texture) => console.log('Textura warrior cargada'),
+        //     undefined,
+        //     (error) => console.error('Error cargando warrior:', error)
+        // );
+        
         this.textures.soldier1 = this.textureLoader.load('img/soldier1.png');
         this.textures.soldier2 = this.textureLoader.load('img/soldier2.png');
         this.textures.soldier3 = this.textureLoader.load('img/soldier3.png');
@@ -262,18 +310,160 @@ export class Game {
         }
     }
     
+    animate2D() {
+        console.log('Iniciando animación Canvas 2D...');
+        
+        const gameLoop = () => {
+            // Limpiar canvas
+            this.ctx2D.fillStyle = '#808080'; // Gris
+            this.ctx2D.fillRect(0, 0, this.canvas2D.width, this.canvas2D.height);
+            
+            // Dibujar estrellas (starfield)
+            if (this.stars && this.stars.length > 0) {
+                for (const star of this.stars) {
+                    this.ctx2D.fillStyle = star.color;
+                    this.ctx2D.globalAlpha = star.opacity;
+                    this.ctx2D.fillRect(star.x, star.y, star.size, star.size);
+                    
+                    // Mover estrellas lentamente hacia abajo
+                    star.y += star.speed;
+                    if (star.y > this.canvas2D.height) {
+                        star.y = 0;
+                        star.x = Math.random() * this.canvas2D.width;
+                    }
+                }
+                this.ctx2D.globalAlpha = 1.0;
+            }
+            
+            // Dibujar jugador
+            if (this.player2D && this.player2D.visible) {
+                this.ctx2D.fillStyle = this.player2D.color;
+                this.ctx2D.fillRect(
+                    this.player2D.x - this.player2D.width / 2,
+                    this.player2D.y - this.player2D.height / 2,
+                    this.player2D.width,
+                    this.player2D.height
+                );
+                
+                // Dibujar detalles del jugador
+                this.ctx2D.fillStyle = '#8B4513'; // Marrón para cuerpo
+                this.ctx2D.fillRect(
+                    this.player2D.x - 20,
+                    this.player2D.y - 10,
+                    40,
+                    30
+                );
+                
+                // Dibujar espada
+                this.ctx2D.fillStyle = '#C0C0C0'; // Plateado para espada
+                this.ctx2D.fillRect(
+                    this.player2D.x + 20,
+                    this.player2D.y - 5,
+                    20,
+                    3
+                );
+                
+                console.log('Jugador dibujado en:', this.player2D.x, this.player2D.y);
+            }
+            
+            // Dibujar texto de depuración
+            this.ctx2D.fillStyle = 'white';
+            this.ctx2D.font = '16px Arial';
+            this.ctx2D.fillText('Canvas 2D Mode - Player Visible', 10, 30);
+            this.ctx2D.fillText('Position: ' + Math.round(this.player2D.x) + ', ' + Math.round(this.player2D.y), 10, 50);
+            this.ctx2D.fillText('Stars: ' + (this.stars ? this.stars.length : 0), 10, 70);
+            
+            // Continuar bucle
+            requestAnimationFrame(gameLoop);
+        };
+        
+        gameLoop();
+    }
+    
     createPlayer() {
-        // Para GIFs animados, necesitamos usar un canvas
-        this.heraclesImg = new Image();
-        this.heraclesImg.onload = () => {
-            console.log('Imagen Heracles cargada, creando canvas...');
-            this.createHeraclesFromCanvas();
+        console.log('createPlayer llamado - usando Canvas 2D');
+        // El jugador ya está creado en el constructor para Canvas 2D
+    }
+    
+    setupKnightFrame(texture) {
+        // Crear un canvas para extraer solo el primer frame
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        
+        // Crear una imagen temporal para cargar el sprite sheet
+        const img = new Image();
+        img.onload = () => {
+            console.log('Imagen cargada - Dimensiones:', img.width, 'x', img.height);
+            
+            // Dibujar un rectángulo rojo de depuración primero
+            ctx.fillStyle = 'red';
+            ctx.fillRect(0, 0, 32, 32);
+            
+            // Dibujar solo el primer frame (0,0,32,32)
+            ctx.drawImage(img, 0, 0, 32, 32, 0, 0, 32, 32);
+            
+            console.log('Frame dibujado en canvas - Canvas dimensions:', canvas.width, 'x', canvas.height);
+            
+            // Crear nueva textura desde el canvas
+            const frameTexture = new THREE.CanvasTexture(canvas);
+            frameTexture.needsUpdate = true;
+            
+            // Aplicar la nueva textura al material
+            if (this.player && this.player.material) {
+                this.player.material.map = frameTexture;
+                this.player.material.needsUpdate = true;
+                console.log('Frame del knight configurado correctamente');
+                console.log('Posición del jugador:', this.player.position.x, this.player.position.y);
+            }
         };
-        this.heraclesImg.onerror = () => {
-            console.error('Error cargando imagen Heracles, usando fallback');
-            this.createFallbackPlayer();
+        img.onerror = () => {
+            console.error('Error cargando imagen para frame extraction');
+            // Dibujar rectángulo rojo como fallback
+            ctx.fillStyle = 'red';
+            ctx.fillRect(0, 0, 32, 32);
+            
+            const frameTexture = new THREE.CanvasTexture(canvas);
+            frameTexture.needsUpdate = true;
+            
+            if (this.player && this.player.material) {
+                this.player.material.map = frameTexture;
+                this.player.material.needsUpdate = true;
+                console.log('Fallback de color rojo aplicado');
+            }
         };
-        this.heraclesImg.src = 'img/Heracles.gif';
+        img.src = 'img/knight_actions_spritesheet.png';
+    }
+    
+    createKnightFallback() {
+        // Intentar cargar el otro sprite sheet con material simple
+        this.textureLoader.load('img/knight_spritesheet.png', 
+            (texture) => {
+                console.log('Knight_spritesheet.png cargado correctamente');
+                
+                const material = new THREE.SpriteMaterial({
+                    map: texture,
+                    transparent: true,
+                    alphaTest: 0.1
+                });
+
+                this.player = new THREE.Sprite(material);
+                this.player.position.y = 100; // Posición Y inicial
+                this.player.position.x = 100; // Posición X inicial
+                this.player.scale.set(2.0, 2.0, 1);
+                this.player.visible = true;
+                this.scene.add(this.player);
+                
+                console.log('Knight fallback creado:', this.player.position, 'Visible:', this.player.visible);
+            },
+            undefined,
+            (error) => {
+                console.error('Error cargando knight_spritesheet.png:', error);
+                // Fallback final al warrior de color sólido
+                this.createFallbackPlayer();
+            }
+        );
     }
     
     createHeraclesFromCanvas() {
@@ -288,6 +478,29 @@ export class Game {
         // Dibujar la imagen en el canvas
         ctx.drawImage(this.heraclesImg, 0, 0);
         
+        // Hacer el fondo transparente (eliminar colores de fondo)
+        const imageData = ctx.getImageData(0, 0, this.heraclesCanvas.width, this.heraclesCanvas.height);
+        const data = imageData.data;
+        
+        // Eliminar colores de fondo comunes (blanco, negro, colores claros, azul)
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            
+            // Si el píxel es de color de fondo (blanco, negro, gris claro o azul)
+            if ((r > 200 && g > 200 && b > 200) || // Blanco o casi blanco
+                (r < 50 && g < 50 && b < 50) ||      // Negro o casi negro
+                (Math.abs(r - g) < 10 && Math.abs(g - b) < 10 && Math.abs(r - b) < 10 && r > 100 && r < 150) || // Gris medio
+                (b > 100 && b > r * 1.5 && b > g * 1.5) || // Azul predominante
+                (b > 150 && r < 100 && g < 100)) { // Azul fuerte con poco rojo/verde
+                // Hacerlo transparente
+                data[i + 3] = 0; // Alpha = 0 (transparente)
+            }
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+        
         // Crear textura desde el canvas
         const texture = new THREE.CanvasTexture(this.heraclesCanvas);
         texture.needsUpdate = true;
@@ -295,7 +508,8 @@ export class Game {
         // Crear sprite con la textura del canvas
         const material = new THREE.SpriteMaterial({ 
             map: texture,
-            transparent: true
+            transparent: true,
+            alphaTest: 0.1 // Umbral de transparencia
         });
 
         this.player = new THREE.Sprite(material);
@@ -305,7 +519,7 @@ export class Game {
         this.player.visible = true;
         this.scene.add(this.player);
         
-        console.log('Heracles desde canvas creado:', this.player.position, 'Visible:', this.player.visible);
+        console.log('Heracles desde canvas creado (sin fondo):', this.player.position, 'Visible:', this.player.visible);
         
         // Guardar referencias para animación
         this.heraclesTexture = texture;
@@ -322,6 +536,29 @@ export class Game {
         this.heraclesCtx.clearRect(0, 0, this.heraclesCanvas.width, this.heraclesCanvas.height);
         this.heraclesCtx.drawImage(this.heraclesImg, 0, 0);
         
+        // Aplicar eliminación de fondo en cada frame
+        const imageData = this.heraclesCtx.getImageData(0, 0, this.heraclesCanvas.width, this.heraclesCanvas.height);
+        const data = imageData.data;
+        
+        // Eliminar colores de fondo comunes (blanco, negro, colores claros, azul)
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            
+            // Si el píxel es de color de fondo (blanco, negro, gris claro o azul)
+            if ((r > 200 && g > 200 && b > 200) || // Blanco o casi blanco
+                (r < 50 && g < 50 && b < 50) ||      // Negro o casi negro
+                (Math.abs(r - g) < 10 && Math.abs(g - b) < 10 && Math.abs(r - b) < 10 && r > 100 && r < 150) || // Gris medio
+                (b > 100 && b > r * 1.5 && b > g * 1.5) || // Azul predominante
+                (b > 150 && r < 100 && g < 100)) { // Azul fuerte con poco rojo/verde
+                // Hacerlo transparente
+                data[i + 3] = 0; // Alpha = 0 (transparente)
+            }
+        }
+        
+        this.heraclesCtx.putImageData(imageData, 0, 0);
+        
         // Actualizar textura
         if (this.heraclesTexture) {
             this.heraclesTexture.needsUpdate = true;
@@ -332,20 +569,78 @@ export class Game {
     }
     
     createFallbackPlayer() {
-        console.log('Creando jugador fallback con warrior.png');
-        const material = new THREE.SpriteMaterial({ 
-            map: this.textures.warrior,
+        console.log('Creando jugador fallback con knight_actions_spritesheet.png');
+        
+        // Usar el mismo sprite sheet pero con un frame diferente
+        this.textureLoader.load('img/knight_actions_spritesheet.png', 
+            (texture) => {
+                console.log('Knight_actions_spritesheet.png cargado como fallback');
+                
+                const textureClone = texture.clone();
+                textureClone.needsUpdate = true;
+                textureClone.wrapS = THREE.RepeatWrapping;
+                textureClone.wrapT = THREE.RepeatWrapping;
+                
+                // Usar un frame diferente para el fallback (frame de idle)
+                const cols = 4;
+                const rows = 4;
+                textureClone.repeat.set(1 / cols, 1 / rows);
+                textureClone.offset.set(0, 1 - (1 / rows)); // Primer frame idle
+                
+                const material = new THREE.SpriteMaterial({
+                    map: textureClone,
+                    transparent: true
+                });
+
+                this.player = new THREE.Sprite(material);
+                this.player.position.y = this.config.groundLevel;
+                this.player.position.x = 0;
+                this.player.scale.set(2.0, 2.0, 1);
+                this.player.visible = true;
+                this.scene.add(this.player);
+                
+                console.log('Jugador fallback creado:', this.player.position, 'Visible:', this.player.visible);
+            },
+            undefined,
+            (error) => {
+                console.error('Error crítico: no se pudo cargar ningún sprite:', error);
+                // Crear un sprite de color sólido como último recurso
+                this.createSolidColorFallback();
+            }
+        );
+    }
+    
+    createSolidColorFallback() {
+        console.log('Creando jugador fallback de color sólido');
+        
+        // Crear un canvas con un rectángulo simple
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        
+        // Dibujar un knight simple de color
+        ctx.fillStyle = '#8B4513'; // Marrón medieval
+        ctx.fillRect(8, 4, 16, 24); // Cuerpo
+        ctx.fillStyle = '#FFD700'; // Dorado para detalles
+        ctx.fillRect(10, 6, 12, 4); // Cabeza
+        ctx.fillRect(12, 10, 8, 2); // Espada
+        
+        const texture = new THREE.CanvasTexture(canvas);
+        
+        const material = new THREE.SpriteMaterial({
+            map: texture,
             transparent: true
         });
 
         this.player = new THREE.Sprite(material);
-        this.player.position.y = this.config.groundLevel;
-        this.player.position.x = 0;
+        this.player.position.y = 100; // Posición Y inicial
+        this.player.position.x = 100; // Posición X inicial
         this.player.scale.set(2.0, 2.0, 1);
         this.player.visible = true;
         this.scene.add(this.player);
         
-        console.log('Jugador fallback creado:', this.player.position, 'Visible:', this.player.visible);
+        console.log('Jugador de color sólido creado:', this.player.position, 'Visible:', this.player.visible);
     }
     
     createEnemies() {
@@ -476,42 +771,30 @@ export class Game {
     }
     
     createStarfield() {
-        // Tres capas de partículas medievales para efecto parallax
+        console.log('Creando starfield para Canvas 2D...');
+        
+        // Crear estrellas para Canvas 2D
+        this.stars = [];
         const layerConfigs = [
-            { count: 300, size: 0.04, depth: 80, speed: 2.0, color: 0x8b4513 }, // marrón oscuro
-            { count: 400, size: 0.06, depth: 60, speed: 3.0, color: 0xd2691e }, // marrón medio
-            { count: 500, size: 0.08, depth: 40, speed: 5.0, color: 0xffd700 }  // dorado
+            { count: 100, size: 1, speed: 0.5, color: '#8b4513' }, // marrón oscuro
+            { count: 150, size: 2, speed: 1.0, color: '#d2691e' }, // marrón medio
+            { count: 200, size: 3, speed: 2.0, color: '#ffd700' }  // dorado
         ];
 
-        this.starfields = [];
-
         for (const cfg of layerConfigs) {
-            const geom = new THREE.BufferGeometry();
-            const mat = new THREE.PointsMaterial({
-                color: cfg.color,
-                size: cfg.size,
-                transparent: true
-            });
-
-            const vertices = [];
             for (let i = 0; i < cfg.count; i++) {
-                const x = (Math.random() - 0.5) * 40;   // ancho
-                const y = (Math.random() - 0.5) * 25;   // alto
-                const z = -Math.random() * cfg.depth;   // al fondo
-                vertices.push(x, y, z);
+                this.stars.push({
+                    x: Math.random() * this.canvas2D.width,
+                    y: Math.random() * this.canvas2D.height,
+                    size: cfg.size,
+                    speed: cfg.speed,
+                    color: cfg.color,
+                    opacity: Math.random() * 0.5 + 0.5
+                });
             }
-
-            geom.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-            const points = new THREE.Points(geom, mat);
-            this.scene.add(points);
-
-            this.starfields.push({
-                points,
-                geometry: geom,
-                depth: cfg.depth,
-                speed: cfg.speed
-            });
         }
+        
+        console.log('Starfield creado - Total estrellas:', this.stars.length);
     }
 
     updateParallax(deltaTime) {
@@ -1000,34 +1283,19 @@ export class Game {
     showWaveIntro() {
         const banner = document.getElementById('wave-banner');
         if (!banner) {
-            this.startWaveSpawning();
+            // En Canvas 2D no spawnemos enemigos
+            console.log('Canvas 2D mode - no enemy spawning');
             return;
         }
 
-        // Limpiar enemigos existentes por seguridad
-        this.enemies.forEach(enemy => this.scene.remove(enemy));
-        this.enemies = [];
-
-        // Cancelar timeouts anteriores
-        if (this.waveBannerTimeout) {
-            clearTimeout(this.waveBannerTimeout);
-            this.waveBannerTimeout = null;
-        }
-
-        // Primero: "¡PREPÁRATE!"
-        banner.textContent = '¡PREPÁRATE!';
+        // En Canvas 2D solo mostramos el banner
+        banner.textContent = `HORDA ${this.wave}`;
         banner.classList.remove('hidden');
 
-        // Después de 1.5s: mostrar "HORDA X"
-        this.waveBannerTimeout = setTimeout(() => {
-            banner.textContent = `HORDA ${this.wave}`;
-
-            // Después de otros 1.5s: ocultar banner y comenzar spawn gradual
-            this.waveBannerTimeout = setTimeout(() => {
-                banner.classList.add('hidden');
-                this.startWaveSpawning();
-            }, 1500);
-        }, 1500);
+        // Ocultar banner después de 3 segundos
+        setTimeout(() => {
+            banner.classList.add('hidden');
+        }, 3000);
     }
     
     update(deltaTime) {
@@ -1043,39 +1311,13 @@ export class Game {
         this.updateHUD();
     }
     
-    animate(time) {
-        this.animationId = requestAnimationFrame((t) => this.animate(t));
-        
-        // Calcular deltaTime para movimiento suave independiente de la tasa de fotogramas
-        if (!this.lastFrameTime) this.lastFrameTime = time;
-        const deltaTime = (time - this.lastFrameTime) / 1000; // Convertir a segundos
-        this.lastFrameTime = time;
-        
-        // Actualizar lógica del juego
-        this.update(deltaTime);
-        
-        // Renderizar la escena
-        if (this.renderer && this.scene && this.camera) {
-            this.renderer.render(this.scene, this.camera);
-        } else {
-            console.error('Faltan componentes para renderizar:', {
-                renderer: !!this.renderer,
-                scene: !!this.scene,
-                camera: !!this.camera
-            });
-        }
-    }
-    
     start() {
         console.log('Iniciando juego...');
         
-        // Limpiar enemigos y balas existentes
-        this.enemies.forEach(enemy => this.scene.remove(enemy));
+        // En Canvas 2D no necesitamos limpiar escena
         this.enemies = [];
-        
-        this.arrows.forEach(arrow => this.scene.remove(arrow.mesh));
         this.arrows = [];
-
+        
         // Resetear estado del juego
         this.score = 0;
         this.level = 1;
@@ -1084,27 +1326,17 @@ export class Game {
         this.gameOver = false;
         this.paused = false;
         
-        // Mostrar secuencia de horda inicial (sin enemigos al principio)
-        this.showWaveIntro();
+        // Resetear jugador
+        this.player2D.x = this.config.width / 2;
+        this.player2D.y = this.config.height / 2;
+        this.player2D.visible = true;
         
-        // Resetear posición del jugador
-        if (this.player) {
-            this.player.position.x = 0;
-            this.player.position.y = -4;
-            this.player.visible = true;
-            console.log('Jugador reseteado:', this.player.position);
-        }
-        
-        // Iniciar bucle de animación
-        this.lastFrameTime = null;
-        console.log('Iniciando animación...');
-        this.animate(0);
+        console.log('Juego iniciado - Canvas 2D mode');
+        // No llamamos a this.animate() porque ya está corriendo animate2D()
     }
     
     stop() {
-        if (this.animationId) {
-            cancelAnimationFrame(this.animationId);
-            this.animationId = null;
-        }
+        // En Canvas 2D no necesitamos detener animación especial
+        console.log('Juego detenido');
     }
 }

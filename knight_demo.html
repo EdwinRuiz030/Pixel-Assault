@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knight Controller Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #222;
+            color: white;
+        }
+        
+        #game-container {
+            text-align: center;
+            margin: 20px auto;
+        }
+        
+        canvas {
+            border: 2px solid #fff;
+            background: #87CEEB;
+        }
+        
+        .controls {
+            background: #333;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px auto;
+            max-width: 600px;
+        }
+        
+        .controls h3 {
+            margin-top: 0;
+            color: #ffd700;
+        }
+        
+        .control-item {
+            margin: 5px 0;
+        }
+        
+        .key {
+            display: inline-block;
+            background: #555;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin: 0 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Knight Controller - Demo</h1>
+    
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+    
+    <div class="controls">
+        <h3>Controles del Knight:</h3>
+        <div class="control-item">
+            <span class="key">←</span><span class="key">→</span> o <span class="key">A</span><span class="key">D</span> - Mover izquierda/derecha
+        </div>
+        <div class="control-item">
+            <span class="key">↑</span><span class="key">W</span><span class="key">Espacio</span> - Saltar
+        </div>
+        <div class="control-item">
+            <span class="key">↓</span><span class="key">S</span> - Agacharse
+        </div>
+        <div class="control-item">
+            <span class="key">F</span> - Atacar
+        </div>
+        <div class="control-item">
+            <span class="key">C</span> - Cambiar arma
+        </div>
+        <div class="control-item">
+            <span class="key">Shift</span> - Correr (mantener presionado)
+        </div>
+    </div>
+    
+    <script src="js/knight_controller.js"></script>
+    <script>
+        // Iniciar el juego
+        window.addEventListener('load', () => {
+            // Modificar la clase Game para usar nuestro canvas
+            class KnightDemo extends Game {
+                constructor() {
+                    // Usar el canvas existente en lugar de crear uno nuevo
+                    this.canvas = document.getElementById('gameCanvas');
+                    this.canvas.width = 800;
+                    this.canvas.height = 600;
+                    
+                    this.context = this.canvas.getContext('2d');
+                    this.knight = new Knight();
+                    
+                    this.input = {
+                        left: false,
+                        right: false,
+                        jump: false,
+                        crouch: false,
+                        attack: false,
+                        changeWeapon: false,
+                        run: false
+                    };
+                    
+                    this.lastTime = 0;
+                    this.setupControls();
+                    this.gameLoop(0);
+                }
+                
+                setupControls() {
+                    document.addEventListener('keydown', (e) => {
+                        switch(e.code) {
+                            case 'ArrowLeft':
+                            case 'KeyA':
+                                this.input.left = true;
+                                break;
+                            case 'ArrowRight':
+                            case 'KeyD':
+                                this.input.right = true;
+                                break;
+                            case 'ArrowUp':
+                            case 'KeyW':
+                                this.input.jump = true;
+                                e.preventDefault();
+                                break;
+                            case 'ArrowDown':
+                            case 'KeyS':
+                                this.input.crouch = true;
+                                break;
+                            case 'KeyF':
+                                this.input.attack = true;
+                                e.preventDefault();
+                                break;
+                            case 'KeyC':
+                                this.input.changeWeapon = true;
+                                break;
+                            case 'ShiftLeft':
+                            case 'ShiftRight':
+                                this.input.run = true;
+                                break;
+                        }
+                    });
+                    
+                    document.addEventListener('keyup', (e) => {
+                        switch(e.code) {
+                            case 'ArrowLeft':
+                            case 'KeyA':
+                                this.input.left = false;
+                                break;
+                            case 'ArrowRight':
+                            case 'KeyD':
+                                this.input.right = false;
+                                break;
+                            case 'ArrowUp':
+                            case 'KeyW':
+                                this.input.jump = false;
+                                break;
+                            case 'ArrowDown':
+                            case 'KeyS':
+                                this.input.crouch = false;
+                                break;
+                            case 'KeyF':
+                                this.input.attack = false;
+                                break;
+                            case 'KeyC':
+                                this.input.changeWeapon = false;
+                                break;
+                            case 'ShiftLeft':
+                            case 'ShiftRight':
+                                this.input.run = false;
+                                break;
+                        }
+                    });
+                }
+                
+                gameLoop(currentTime) {
+                    const deltaTime = currentTime - this.lastTime;
+                    this.lastTime = currentTime;
+                    
+                    // Limpiar canvas
+                    this.context.fillStyle = '#87CEEB';
+                    this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    
+                    // Dibujar suelo
+                    this.context.fillStyle = '#8B7355';
+                    this.context.fillRect(0, 400, this.canvas.width, 200);
+                    
+                    // Dibujar pasto
+                    this.context.fillStyle = '#228B22';
+                    this.context.fillRect(0, 400, this.canvas.width, 10);
+                    
+                    // Actualizar y dibujar knight
+                    this.knight.update(this.input, deltaTime, 400);
+                    this.knight.draw(this.context, 100, 400 - 32);
+                    
+                    // Mostrar información de depuración
+                    this.context.fillStyle = 'black';
+                    this.context.font = '14px Arial';
+                    this.context.fillText(`Estado: ${this.knight.state}`, 10, 20);
+                    this.context.fillText(`Frame: ${this.knight.currentFrame}`, 10, 40);
+                    this.context.fillText(`Dirección: ${this.knight.direction > 0 ? 'Derecha' : 'Izquierda'}`, 10, 60);
+                    this.context.fillText(`Posición: (${Math.round(this.knight.x)}, ${Math.round(this.knight.y)})`, 10, 80);
+                    this.context.fillText(`Velocidad: (${Math.round(this.knight.velocityX * 10) / 10}, ${Math.round(this.knight.velocityY * 10) / 10})`, 10, 100);
+                    this.context.fillText(`En suelo: ${this.knight.grounded ? 'Sí' : 'No'}`, 10, 120);
+                    
+                    // Mostrar caja de ataque si está atacando
+                    const attackBox = this.knight.getAttackBox();
+                    if (attackBox) {
+                        this.context.strokeStyle = 'red';
+                        this.context.strokeRect(attackBox.x, attackBox.y, attackBox.width, attackBox.height);
+                    }
+                    
+                    // Continuar bucle
+                    requestAnimationFrame((time) => this.gameLoop(time));
+                }
+            }
+            
+            // Iniciar demo
+            new KnightDemo();
+        });
+    </script>
+</body>
+</html>
