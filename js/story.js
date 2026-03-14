@@ -24,6 +24,14 @@ export class StoryMode {
             console.error('No se pudo obtener el contexto 2D del canvas');
             return;
         }
+
+        // Video de fondo para nivel 1
+        this.castleVideo = document.getElementById('castle-background');
+        if (this.castleVideo) {
+            this.castleVideo.style.display = 'none'; // Ocultar por defecto
+            // Forzar reproducción del video
+            this.castleVideo.play().catch(e => console.log('Error reproduciendo video:', e));
+        }
         
         // Configurar dimensiones del canvas
         this.canvas.width = this.config.width;
@@ -44,6 +52,16 @@ export class StoryMode {
         this.maxLevel = 5;
         this.score = 0;
         this.storyProgress = 0;
+
+        // Sistema de scroll (manual - cámara sigue al jugador)
+        this.camera = {
+            x: 0,
+            y: 0,
+            width: this.config.width,
+            height: this.config.height
+        };
+        this.worldWidth = 3000; // Mundo más ancho que la pantalla
+        this.autoScroll = false; // Scroll manual controlado por el jugador
 
         // Sistema de historia
         this.storyTexts = [
@@ -79,9 +97,58 @@ export class StoryMode {
             }
         ];
 
+        // Sistema de escenarios por nivel
+        this.levelEnvironments = [
+            {
+                level: 1,
+                name: "Reino Pacífico",
+                skyColor: '#87CEEB', // Azul cielo claro
+                groundColor: '#8B4513', // Tierra marrón
+                platformColor: '#654321', // Madera oscura
+                decorationColor: '#228B22', // Verde bosque
+                timeOfDay: 'dia'
+            },
+            {
+                level: 2,
+                name: "Bosque Oscuro",
+                skyColor: '#2F4F4F', // Gris oscuro
+                groundColor: '#3E2723', // Tierra muy oscura
+                platformColor: '#1B0F0A', // Madera carbonizada
+                decorationColor: '#8B0000', // Rojo oscuro
+                timeOfDay: 'atardecer'
+            },
+            {
+                level: 3,
+                name: "Castillo en Llamas",
+                skyColor: '#8B0000', // Rojo sangre
+                groundColor: '#4A4A4A', // Piedra gris
+                platformColor: '#2C2C2C', // Piedra oscura
+                decorationColor: '#FF4500', // Naranja fuego
+                timeOfDay: 'noche'
+            },
+            {
+                level: 4,
+                name: "Trono Oscuro",
+                skyColor: '#191970', // Azul medianoche
+                groundColor: '#000000', // Negro absoluto
+                platformColor: '#4B0082', // Índigo
+                decorationColor: '#9400D3', // Violeta
+                timeOfDay: 'medianoche'
+            },
+            {
+                level: 5,
+                name: "Reino Restaurado",
+                skyColor: '#FFD700', // Dorado amanecer
+                groundColor: '#DAA520', // Oro oscuro
+                platformColor: '#B8860B', // Dorado oscuro
+                decorationColor: '#FF69B4', // Rosa brillante
+                timeOfDay: 'amanecer'
+            }
+        ];
+
         // Jugador
         this.player = {
-            x: this.config.width / 2,
+            x: 200, // Posición inicial más a la izquierda
             y: this.config.height - 200,
             width: 40,
             height: 60,
@@ -100,6 +167,9 @@ export class StoryMode {
 
         // Plataformas (varían por nivel)
         this.platforms = this.generatePlatforms(this.currentLevel);
+
+        // Elementos decorativos del escenario
+        this.decorations = this.generateDecorations(this.currentLevel);
 
         // Enemigos
         this.enemies = [];
@@ -137,7 +207,7 @@ export class StoryMode {
         }
         
         this.setupControls();
-        this.showLevelIntro();
+        // Eliminado showLevelIntro() para empezar directamente con acción
         this.updateHUD();
         this.gameLoop();
         
@@ -145,36 +215,141 @@ export class StoryMode {
     }
 
     generatePlatforms(level) {
-        const basePlatforms = [
-            { x: 0, y: this.config.height - 50, width: this.config.width, height: 50, color: '#8B4513' }
-        ];
+        const environment = this.levelEnvironments[level - 1];
+        const platforms = [];
+        
+        // Plataforma base que cubre todo el mundo
+        platforms.push({ 
+            x: 0, 
+            y: this.config.height - 50, 
+            width: this.worldWidth, 
+            height: 50, 
+            color: environment.groundColor 
+        });
 
-        if (level === 1) {
-            basePlatforms.push(
-                { x: 200, y: this.config.height - 200, width: 150, height: 20, color: '#654321' },
-                { x: this.config.width - 350, y: this.config.height - 200, width: 150, height: 20, color: '#654321' },
-                { x: this.config.width / 2 - 75, y: this.config.height - 350, width: 150, height: 20, color: '#654321' }
-            );
-        } else if (level === 2) {
-            basePlatforms.push(
-                { x: 150, y: this.config.height - 180, width: 120, height: 20, color: '#654321' },
-                { x: this.config.width - 270, y: this.config.height - 180, width: 120, height: 20, color: '#654321' },
-                { x: this.config.width / 2 - 100, y: this.config.height - 320, width: 200, height: 20, color: '#654321' },
-                { x: 100, y: this.config.height - 450, width: 100, height: 20, color: '#654321' },
-                { x: this.config.width - 200, y: this.config.height - 450, width: 100, height: 20, color: '#654321' }
-            );
-        } else if (level >= 3) {
-            basePlatforms.push(
-                { x: 100, y: this.config.height - 160, width: 100, height: 20, color: '#654321' },
-                { x: this.config.width - 200, y: this.config.height - 160, width: 100, height: 20, color: '#654321' },
-                { x: this.config.width / 2 - 150, y: this.config.height - 300, width: 300, height: 20, color: '#654321' },
-                { x: 50, y: this.config.height - 400, width: 80, height: 20, color: '#654321' },
-                { x: this.config.width - 130, y: this.config.height - 400, width: 80, height: 20, color: '#654321' },
-                { x: this.config.width / 2 - 50, y: this.config.height - 500, width: 100, height: 20, color: '#654321' }
-            );
+        // Generar plataformas distribuidas por todo el mundo
+        const platformCount = 8 + level * 2;
+        for (let i = 0; i < platformCount; i++) {
+            platforms.push({
+                x: 300 + i * 250 + Math.random() * 100,
+                y: this.config.height - 150 - Math.random() * 200,
+                width: 100 + Math.random() * 100,
+                height: 20,
+                color: environment.platformColor
+            });
         }
 
-        return basePlatforms;
+        return platforms;
+    }
+
+    // Generar elementos decorativos según el nivel (distribuidos por todo el mundo)
+    generateDecorations(level) {
+        const environment = this.levelEnvironments[level - 1];
+        const decorations = [];
+        let decorationCount = 0;
+        let decorationType = '';
+
+        switch(level) {
+            case 1: // Reino Pacífico - árboles y flores
+                decorationType = 'tree';
+                decorationCount = 15;
+                break;
+            case 2: // Bosque Oscuro - árboles muertos y rocas
+                decorationType = 'dead_tree';
+                decorationCount = 20;
+                break;
+            case 3: // Castillo en Llamas - antorchas y escombros
+                decorationType = 'torch';
+                decorationCount = 18;
+                break;
+            case 4: // Trono Oscuro - cristales y runas
+                decorationType = 'crystal';
+                decorationCount = 25;
+                break;
+            case 5: // Reino Restaurado - estatuas y banderas
+                decorationType = 'statue';
+                decorationCount = 22;
+                break;
+        }
+
+        // Distribuir decoraciones por todo el mundo
+        for (let i = 0; i < decorationCount; i++) {
+            decorations.push({
+                type: decorationType,
+                x: 200 + i * 150 + Math.random() * 100,
+                y: this.config.height - 80 - Math.random() * 40,
+                width: decorationType === 'tree' ? 30 : decorationType === 'statue' ? 35 : 20,
+                height: decorationType === 'tree' ? 50 : decorationType === 'dead_tree' ? 70 : 30,
+                color: environment.decorationColor
+            });
+        }
+
+        return decorations;
+    }
+
+    // Renderizar elementos decorativos
+    renderDecorations() {
+        for (const decoration of this.decorations) {
+            this.ctx.fillStyle = decoration.color;
+            
+            switch(decoration.type) {
+                case 'tree':
+                    // Tronco
+                    this.ctx.fillRect(decoration.x + 10, decoration.y + 20, 10, 30);
+                    // Hojas
+                    this.ctx.beginPath();
+                    this.ctx.arc(decoration.x + 15, decoration.y + 15, 15, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    break;
+                    
+                case 'dead_tree':
+                    // Tronco retorcido
+                    this.ctx.fillRect(decoration.x + 8, decoration.y + 30, 8, 40);
+                    // Ramas secas
+                    this.ctx.fillRect(decoration.x + 5, decoration.y + 20, 20, 3);
+                    this.ctx.fillRect(decoration.x, decoration.y + 15, 25, 3);
+                    break;
+                    
+                case 'torch':
+                    // Poste
+                    this.ctx.fillRect(decoration.x + 6, decoration.y + 10, 3, 20);
+                    // Fuego (efecto animado simple)
+                    const flameHeight = 10 + Math.sin(Date.now() / 200) * 3;
+                    this.ctx.fillStyle = '#FF6600';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(decoration.x + 7.5, decoration.y + 10);
+                    this.ctx.lineTo(decoration.x + 2, decoration.y - flameHeight);
+                    this.ctx.lineTo(decoration.x + 13, decoration.y - flameHeight);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                    this.ctx.fillStyle = decoration.color;
+                    break;
+                    
+                case 'crystal':
+                    // Cristal brillante
+                    this.ctx.save();
+                    this.ctx.translate(decoration.x + decoration.width/2, decoration.y + decoration.height/2);
+                    this.ctx.rotate(Math.PI / 4);
+                    this.ctx.fillRect(-decoration.width/2, -decoration.height/2, decoration.width, decoration.height);
+                    this.ctx.restore();
+                    // Brillo
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                    this.ctx.fillRect(decoration.x + 2, decoration.y + 2, 4, 4);
+                    this.ctx.fillStyle = decoration.color;
+                    break;
+                    
+                case 'statue':
+                    // Base
+                    this.ctx.fillRect(decoration.x + 5, decoration.y + 25, 25, 15);
+                    // Cuerpo
+                    this.ctx.fillRect(decoration.x + 10, decoration.y + 10, 15, 20);
+                    // Cabeza
+                    this.ctx.beginPath();
+                    this.ctx.arc(decoration.x + 17.5, decoration.y + 8, 6, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    break;
+            }
+        }
     }
 
     showLevelIntro() {
@@ -285,9 +460,28 @@ export class StoryMode {
         this.player.x += this.player.velocityX;
         this.player.y += this.player.velocityY;
 
-        // Límites de pantalla
+        // Límites del mundo
         if (this.player.x < 0) this.player.x = 0;
-        if (this.player.x + this.player.width > this.config.width) this.player.x = this.config.width - this.player.width;
+        if (this.player.x + this.player.width > this.worldWidth) {
+            this.player.x = this.worldWidth - this.player.width;
+        }
+
+        // Actualizar cámara para seguir al jugador (manual)
+        const targetCameraX = this.player.x - this.config.width / 2;
+        
+        // Suavizar movimiento de la cámara
+        this.camera.x += (targetCameraX - this.camera.x) * 0.1;
+        
+        // Limitar cámara a los bordes del mundo
+        if (this.camera.x < 0) this.camera.x = 0;
+        if (this.camera.x > this.worldWidth - this.config.width) {
+            this.camera.x = this.worldWidth - this.config.width;
+        }
+
+        // Completar nivel cuando el jugador llega al final del mundo
+        if (this.player.x >= this.worldWidth - this.player.width - 10 && !this.levelCompleted) {
+            this.completeLevel();
+        }
 
         // Colisión con plataformas
         this.player.isGrounded = false;
@@ -432,8 +626,10 @@ export class StoryMode {
     }
 
     spawnEnemy() {
+        // Spawn enemigos dentro del área visible de la cámara
+        const spawnX = this.camera.x + this.config.width + Math.random() * 200;
         const enemy = {
-            x: Math.random() < 0.5 ? 50 : this.config.width - 50,
+            x: spawnX,
             y: this.config.height - 150,
             width: 30 + this.currentLevel * 2,
             height: 30 + this.currentLevel * 2,
@@ -460,8 +656,9 @@ export class StoryMode {
     }
 
     spawnGem() {
+        // Spawn gemas dentro del área visible de la cámara
         const gem = {
-            x: Math.random() * (this.config.width - 20) + 10,
+            x: this.camera.x + Math.random() * (this.config.width - 20) + 10,
             y: Math.random() * 200 + 100,
             width: 20,
             height: 20,
@@ -560,7 +757,12 @@ export class StoryMode {
         this.currentLevel++;
         this.levelCompleted = false;
         this.levelStartTime = Date.now();
+        
+        // Resetear cámara para nuevo nivel
+        this.camera.x = 0;
+        
         this.platforms = this.generatePlatforms(this.currentLevel);
+        this.decorations = this.generateDecorations(this.currentLevel);
         this.enemies = [];
         this.gems = [];
         this.projectiles = [];
@@ -571,8 +773,22 @@ export class StoryMode {
         this.player.health = this.player.maxHealth;
         this.player.enemiesDefeated = 0;
         this.player.survivalTime = 0;
+        this.player.x = 200; // Resetear posición del jugador
         
-        this.showLevelIntro();
+        // Mostrar breve transición entre niveles (estilo Metal Slug)
+        this.showLevelTransition();
+    }
+
+    // Breve transición entre niveles (estilo Metal Slug)
+    showLevelTransition() {
+        const environment = this.levelEnvironments[this.currentLevel - 1];
+        this.currentDialogue = {
+            title: `${environment.name}`,
+            text: `Nivel ${this.currentLevel}`,
+            objective: "¡Prepárate para la batalla!",
+            duration: 1500 // Más breve que antes
+        };
+        this.dialogueTimer = 1500;
     }
 
     updateHUD() {
@@ -583,9 +799,36 @@ export class StoryMode {
     }
 
     render() {
-        // Limpiar canvas
-        this.ctx.fillStyle = '#87CEEB';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        // Obtener entorno actual
+        const environment = this.levelEnvironments[this.currentLevel - 1];
+        
+        // Manejar video de fondo para nivel 1
+        if (this.currentLevel === 1 && this.castleVideo) {
+            this.castleVideo.style.display = 'block'; // Mostrar video en nivel 1
+            // Forzar reproducción del video
+            if (this.castleVideo.paused) {
+                this.castleVideo.play().catch(e => console.log('Error reproduciendo video:', e));
+            }
+            // Limpiar canvas completamente para evitar rastros
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        } else {
+            // Ocultar video en otros niveles
+            if (this.castleVideo) {
+                this.castleVideo.style.display = 'none';
+            }
+            // Limpiar canvas con color del cielo del nivel
+            this.ctx.fillStyle = environment.skyColor;
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+
+        // Guardar estado del contexto para aplicar cámara
+        this.ctx.save();
+        
+        // Aplicar transformación de la cámara
+        this.ctx.translate(-this.camera.x, -this.camera.y);
+
+        // Dibujar elementos decorativos del fondo
+        this.renderDecorations();
 
         // Dibujar plataformas
         for (const platform of this.platforms) {
@@ -643,6 +886,9 @@ export class StoryMode {
         }
         this.ctx.globalAlpha = 1.0;
 
+        // Restaurar estado del contexto (quitar cámara)
+        this.ctx.restore();
+
         // Dibujar diálogo
         if (this.currentDialogue) {
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
@@ -697,16 +943,23 @@ export class StoryMode {
             this.ctx.fillText('Presiona ESC para volver al menú', this.canvas.width / 2, this.canvas.height / 2 + 100);
         }
 
-        // Objetivo actual
+        // Información del nivel (estilo Metal Slug - sin objetivos)
         if (!this.gameOver && !this.currentDialogue) {
-            const story = this.storyTexts[this.currentLevel - 1];
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-            this.ctx.fillRect(10, 10, 400, 60);
-            this.ctx.fillStyle = '#FFD700';
-            this.ctx.font = '16px Arial';
+            const environment = this.levelEnvironments[this.currentLevel - 1];
+            
+            // Fondo semitransparente para el HUD
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            this.ctx.fillRect(10, 10, 400, 50);
+            
+            // Nombre del nivel con color del entorno
+            this.ctx.fillStyle = environment.decorationColor;
+            this.ctx.font = 'bold 20px Arial';
             this.ctx.textAlign = 'left';
-            this.ctx.fillText(`Objetivo: ${story.objective}`, 20, 35);
+            this.ctx.fillText(`${environment.name}`, 20, 35);
+            
+            // Progreso simple
             this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = '16px Arial';
             this.ctx.fillText(`Gemas: ${this.player.gems} | Enemigos: ${this.player.enemiesDefeated}`, 20, 55);
         }
     }

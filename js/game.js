@@ -14,7 +14,7 @@ export class Game {
             // Dibujar algo directamente en el canvas para probar
             const ctx = testCanvas.getContext('2d');
             if (ctx) {
-                ctx.fillStyle = 'black';
+                ctx.fillStyle = 'red';
                 ctx.fillRect(50, 50, 100, 100);
                 console.log('Rectángulo rojo dibujado directamente en canvas');
             } else {
@@ -318,7 +318,7 @@ export class Game {
             this.ctx2D.fillStyle = '#808080'; // Gris
             this.ctx2D.fillRect(0, 0, this.canvas2D.width, this.canvas2D.height);
             
-            // Dibujar estrellas (starfield)
+            // Dibujar estrellas (starfield) - se mueven incluso en pausa para efecto visual
             if (this.stars && this.stars.length > 0) {
                 for (const star of this.stars) {
                     this.ctx2D.fillStyle = star.color;
@@ -335,8 +335,8 @@ export class Game {
                 this.ctx2D.globalAlpha = 1.0;
             }
             
-            // Dibujar jugador
-            if (this.player2D && this.player2D.visible) {
+            // Dibujar jugador (solo si no está en pausa)
+            if (!this.paused && this.player2D && this.player2D.visible) {
                 this.ctx2D.fillStyle = this.player2D.color;
                 this.ctx2D.fillRect(
                     this.player2D.x - this.player2D.width / 2,
@@ -366,12 +366,29 @@ export class Game {
                 console.log('Jugador dibujado en:', this.player2D.x, this.player2D.y);
             }
             
+            // Mostrar mensaje de pausa si está pausado
+            if (this.paused) {
+                this.ctx2D.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                this.ctx2D.fillRect(0, 0, this.canvas2D.width, this.canvas2D.height);
+                
+                this.ctx2D.fillStyle = '#FFFFFF';
+                this.ctx2D.font = 'bold 48px Arial';
+                this.ctx2D.textAlign = 'center';
+                this.ctx2D.fillText('PAUSA', this.canvas2D.width / 2, this.canvas2D.height / 2);
+                
+                this.ctx2D.font = '24px Arial';
+                this.ctx2D.fillText('Presiona P para reanudar', this.canvas2D.width / 2, this.canvas2D.height / 2 + 50);
+                
+                this.ctx2D.textAlign = 'left'; // Restaurar alineación
+            }
+            
             // Dibujar texto de depuración
             this.ctx2D.fillStyle = 'white';
             this.ctx2D.font = '16px Arial';
             this.ctx2D.fillText('Canvas 2D Mode - Player Visible', 10, 30);
             this.ctx2D.fillText('Position: ' + Math.round(this.player2D.x) + ', ' + Math.round(this.player2D.y), 10, 50);
             this.ctx2D.fillText('Stars: ' + (this.stars ? this.stars.length : 0), 10, 70);
+            this.ctx2D.fillText('Paused: ' + this.paused, 10, 90);
             
             // Continuar bucle
             requestAnimationFrame(gameLoop);
@@ -827,9 +844,11 @@ export class Game {
         // Manejadores de teclado
         window.addEventListener('keydown', (e) => {
             this.keys[e.code] = true;
+            console.log('Tecla presionada:', e.code);
             
             // Pausa el juego con la tecla P
             if (e.code === 'KeyP') {
+                console.log('Tecla P detectada - llamando a togglePause()');
                 this.togglePause();
             }
             
@@ -858,50 +877,33 @@ export class Game {
     }
     
     togglePause() {
-
-        this.enemies.forEach(enemy => this.scene.remove(enemy));
-        this.enemies = [];
-
-        this.arrows.forEach(a => this.scene.remove(a.mesh));
-        this.arrows = [];
-
-        if (this.player) {
-            const explosionMaterial = new THREE.SpriteMaterial({
-                map: this.textures.explosion,
-                transparent: true
-            });
-            const explosion = new THREE.Sprite(explosionMaterial);
-            explosion.position.x = this.player.position.x;
-            explosion.position.y = this.player.position.y;
-            explosion.scale.set(1.6, 1.6, 1);
-            this.scene.add(explosion);
-
-            this.player.visible = false;
-
-            setTimeout(() => {
-                this.scene.remove(explosion);
-            }, 450);
+        console.log('togglePause() llamado - paused actual:', this.paused);
+        this.paused = !this.paused;
+        console.log('togglePause() - nuevo estado paused:', this.paused);
+        
+        if (this.paused) {
+            // Mostrar mensaje de pausa
+            console.log('Juego pausado');
+            // Opcional: mostrar UI de pausa
+            const pauseBanner = document.getElementById('pause-banner');
+            if (pauseBanner) {
+                pauseBanner.textContent = 'PAUSA';
+                pauseBanner.classList.remove('hidden');
+            }
+        } else {
+            // Ocultar mensaje de pausa
+            console.log('Juego reanudado');
+            const pauseBanner = document.getElementById('pause-banner');
+            if (pauseBanner) {
+                pauseBanner.classList.add('hidden');
+            }
         }
-
-        if (this.lives <= 0) {
-            this.gameOver = true;
-            this.showGameOver();
-            return;
-        }
-
-        this.playerInvulnerableUntil = Date.now() + 1400;
-        if (this.respawnTimeout) {
-            clearTimeout(this.respawnTimeout);
-        }
-        this.respawnTimeout = setTimeout(() => {
-            if (!this.player) return;
-            this.player.position.x = 0;
-            this.player.position.y = -4;
-            this.player.visible = true;
-        }, 700);
     }
     
     updatePlayer(deltaTime) {
+        // No mover al jugador si está pausado
+        if (this.paused) return;
+        
         // No mover al jugador si no está visible (está en respawn)
         if (!this.player || !this.player.visible) return;
         
