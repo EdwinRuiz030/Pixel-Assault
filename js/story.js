@@ -33,6 +33,28 @@ export class StoryMode {
             this.castleVideo.play().catch(e => console.log('Error reproduciendo video:', e));
         }
         
+        // Intentar usar el GIF convirtiéndolo a video con canvas
+        this.castleGif = new Image();
+        this.castleGifLoaded = false;
+        // Eliminamos la animación automática para que solo se mueva con la cámara
+        
+        this.castleGif.onload = () => {
+            this.castleGifLoaded = true;
+            console.log('GIF del castillo animado cargado correctamente - Dimensiones:', this.castleGif.width, 'x', this.castleGif.height);
+        };
+        this.castleGif.onerror = () => {
+            console.error('Error cargando GIF del castillo animado');
+            this.castleGifLoaded = false;
+        };
+        this.castleGif.src = 'img/castillo animado.gif';
+        
+        // Capas de paralaje para mayor profundidad
+        this.parallaxLayers = [
+            { speed: 0.05, alpha: 0.3 }, // Capa más lejana
+            { speed: 0.1, alpha: 0.4 },  // Capa media
+            { speed: 0.15, alpha: 0.5 }  // Capa cercana
+        ];
+        
         // Configurar dimensiones del canvas
         this.canvas.width = this.config.width;
         this.canvas.height = this.config.height;
@@ -60,42 +82,8 @@ export class StoryMode {
             width: this.config.width,
             height: this.config.height
         };
-        this.worldWidth = 3000; // Mundo más ancho que la pantalla
+        this.worldWidth = 10000; // Mundo mucho más largo para más recorrido
         this.autoScroll = false; // Scroll manual controlado por el jugador
-
-        // Sistema de historia
-        this.storyTexts = [
-            {
-                level: 1,
-                title: "El Comienzo",
-                text: "Eres un caballero valiente en tu reino. Debes defenderte de las criaturas que amenazan tu tierra.",
-                objective: "Sobrevive y recolecta 10 gemas"
-            },
-            {
-                level: 2,
-                title: "El Bosque Oscuro",
-                text: "Las criaturas se vuelven más agresivas. El rey necesita tu ayuda para proteger el castillo.",
-                objective: "Derrota a 15 enemigos"
-            },
-            {
-                level: 3,
-                title: "El Asedio",
-                text: "El castillo está bajo ataque. Eres la última esperanza del reino.",
-                objective: "Sobrevive 2 minutos"
-            },
-            {
-                level: 4,
-                title: "El Confrontación",
-                text: "El líder de las criaturas aparece. Debes enfrentarlo para salvar a todos.",
-                objective: "Derrota al jefe"
-            },
-            {
-                level: 5,
-                title: "El Héroe",
-                text: "Has salvado el reino. Ahora eres una leyenda. ¡Felicidades, valiente caballero!",
-                objective: "Completa la misión final"
-            }
-        ];
 
         // Sistema de escenarios por nivel
         this.levelEnvironments = [
@@ -188,17 +176,17 @@ export class StoryMode {
 
         // Efectos visuales
         this.particles = [];
+        
+        // Sistema de disparo
+        this.lastShootTime = 0;
+        this.shootCooldown = 250; // ms entre disparos
 
         // Jefe (para nivel 4)
         this.boss = null;
 
-        // Diálogo actual
-        this.currentDialogue = null;
-        this.dialogueTimer = 0;
-
         // Estado del nivel
         this.levelStartTime = Date.now();
-        this.levelCompleted = false;
+        this.lastFrameTime = Date.now();
 
         // Inicialización
         if (!this.canvas || !this.ctx) {
@@ -227,13 +215,13 @@ export class StoryMode {
             color: environment.groundColor 
         });
 
-        // Generar plataformas distribuidas por todo el mundo
-        const platformCount = 8 + level * 2;
+        // Generar más plataformas distribuidas por todo el mundo (aumentado para mundo más largo)
+        const platformCount = 20 + level * 4; // Más plataformas
         for (let i = 0; i < platformCount; i++) {
             platforms.push({
-                x: 300 + i * 250 + Math.random() * 100,
-                y: this.config.height - 150 - Math.random() * 200,
-                width: 100 + Math.random() * 100,
+                x: 300 + i * 400 + Math.random() * 150, // Más separadas
+                y: this.config.height - 150 - Math.random() * 250,
+                width: 120 + Math.random() * 120, // Más grandes
                 height: 20,
                 color: environment.platformColor
             });
@@ -252,31 +240,31 @@ export class StoryMode {
         switch(level) {
             case 1: // Reino Pacífico - árboles y flores
                 decorationType = 'tree';
-                decorationCount = 15;
+                decorationCount = 40; // Más decoraciones
                 break;
             case 2: // Bosque Oscuro - árboles muertos y rocas
                 decorationType = 'dead_tree';
-                decorationCount = 20;
+                decorationCount = 50;
                 break;
             case 3: // Castillo en Llamas - antorchas y escombros
                 decorationType = 'torch';
-                decorationCount = 18;
+                decorationCount = 45;
                 break;
             case 4: // Trono Oscuro - cristales y runas
                 decorationType = 'crystal';
-                decorationCount = 25;
+                decorationCount = 60;
                 break;
             case 5: // Reino Restaurado - estatuas y banderas
                 decorationType = 'statue';
-                decorationCount = 22;
+                decorationCount = 55;
                 break;
         }
 
-        // Distribuir decoraciones por todo el mundo
+        // Distribuir decoraciones por todo el mundo (más separadas para mundo más largo)
         for (let i = 0; i < decorationCount; i++) {
             decorations.push({
                 type: decorationType,
-                x: 200 + i * 150 + Math.random() * 100,
+                x: 200 + i * 200 + Math.random() * 100, // Más separadas
                 y: this.config.height - 80 - Math.random() * 40,
                 width: decorationType === 'tree' ? 30 : decorationType === 'statue' ? 35 : 20,
                 height: decorationType === 'tree' ? 50 : decorationType === 'dead_tree' ? 70 : 30,
@@ -352,17 +340,6 @@ export class StoryMode {
         }
     }
 
-    showLevelIntro() {
-        const story = this.storyTexts[this.currentLevel - 1];
-        this.currentDialogue = {
-            title: story.title,
-            text: story.text,
-            objective: story.objective,
-            duration: 3000 // Reducido a 3 segundos
-        };
-        this.dialogueTimer = story.duration;
-    }
-
     setupControls() {
         window.addEventListener('keydown', (e) => {
             this.keys[e.code] = true;
@@ -392,17 +369,6 @@ export class StoryMode {
         
         // Si está en pausa, no permitir otros controles (excepto pausa/reanudar)
         if (this.paused) return;
-        
-        // Permitir saltar el diálogo con ESPACIO o ENTER
-        if (this.currentDialogue && (this.keys['Space'] || this.keys['Enter'])) {
-            this.currentDialogue = null;
-            this.dialogueTimer = 0;
-            this.keys['Space'] = false;
-            this.keys['Enter'] = false;
-            return;
-        }
-        
-        if (this.currentDialogue) return;
 
         // Movimiento horizontal
         if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
@@ -430,6 +396,13 @@ export class StoryMode {
     }
 
     playerAttack() {
+        const currentTime = Date.now();
+        if (currentTime - this.lastShootTime < this.shootCooldown) {
+            return; // No disparar si está en cooldown
+        }
+        
+        this.lastShootTime = currentTime;
+        
         const projectile = {
             x: this.player.x + (this.player.facing > 0 ? this.player.width / 2 : -this.player.width / 2),
             y: this.player.y,
@@ -444,14 +417,6 @@ export class StoryMode {
     }
 
     updatePhysics() {
-        if (this.currentDialogue) {
-            this.dialogueTimer -= 16;
-            if (this.dialogueTimer <= 0) {
-                this.currentDialogue = null;
-            }
-            return;
-        }
-
         // Actualizar jugador
         if (!this.player.isGrounded) {
             this.player.velocityY += this.config.gravity;
@@ -478,11 +443,6 @@ export class StoryMode {
             this.camera.x = this.worldWidth - this.config.width;
         }
 
-        // Completar nivel cuando el jugador llega al final del mundo
-        if (this.player.x >= this.worldWidth - this.player.width - 10 && !this.levelCompleted) {
-            this.completeLevel();
-        }
-
         // Colisión con plataformas
         this.player.isGrounded = false;
         for (const platform of this.platforms) {
@@ -501,7 +461,8 @@ export class StoryMode {
             projectile.x += projectile.velocityX;
             projectile.y += projectile.velocityY;
 
-            if (projectile.x < 0 || projectile.x > this.config.width) {
+            // Eliminar proyectiles que salgan del mundo (no solo de la pantalla visible)
+            if (projectile.x < this.camera.x - 100 || projectile.x > this.camera.x + this.config.width + 100) {
                 return false;
             }
 
@@ -524,7 +485,7 @@ export class StoryMode {
                 if (this.boss.health <= 0) {
                     this.boss = null;
                     this.score += 1000;
-                    this.completeLevel();
+                    // Eliminada la llamada a completeLevel() para continuar jugando
                 }
                 return false;
             }
@@ -544,8 +505,10 @@ export class StoryMode {
         // Actualizar tiempo de supervivencia
         this.player.survivalTime = Math.floor((Date.now() - this.levelStartTime) / 1000);
 
-        // Verificar objetivos del nivel
-        this.checkLevelObjectives();
+        // Verificar si el jugador sigue vivo
+        if (this.player.health <= 0) {
+            this.gameOver = true;
+        }
     }
 
     updateEnemies() {
@@ -687,110 +650,6 @@ export class StoryMode {
                obj1.y + obj1.height > obj2.y;
     }
 
-    checkLevelObjectives() {
-        const story = this.storyTexts[this.currentLevel - 1];
-
-        switch (this.currentLevel) {
-            case 1:
-                if (this.player.gems >= 10) {
-                    this.completeLevel();
-                }
-                break;
-            case 2:
-                if (this.player.enemiesDefeated >= 15) {
-                    this.completeLevel();
-                }
-                break;
-            case 3:
-                if (this.player.survivalTime >= 120) { // 2 minutos
-                    this.completeLevel();
-                }
-                break;
-            case 4:
-                if (!this.boss && this.player.enemiesDefeated >= 20) {
-                    this.completeLevel();
-                }
-                break;
-            case 5:
-                if (this.player.enemiesDefeated >= 25 && this.player.gems >= 20) {
-                    this.completeLevel();
-                }
-                break;
-        }
-
-        if (this.player.health <= 0) {
-            this.gameOver = true;
-        }
-    }
-
-    completeLevel() {
-        if (this.levelCompleted) return;
-        
-        this.levelCompleted = true;
-        this.score += 500 * this.currentLevel;
-
-        if (this.currentLevel < this.maxLevel) {
-            this.currentDialogue = {
-                title: "¡Nivel Completado!",
-                text: `Excelente trabajo, caballero. Puntuación: ${this.score}`,
-                objective: `Prepárate para el nivel ${this.currentLevel + 1}`,
-                duration: 3000
-            };
-            this.dialogueTimer = 3000;
-            
-            setTimeout(() => {
-                this.nextLevel();
-            }, 3000);
-        } else {
-            this.currentDialogue = {
-                title: "¡Victoria!",
-                text: "Has completado toda la historia. Eres un verdadero héroe del reino.",
-                objective: `Puntuación final: ${this.score}`,
-                duration: 5000
-            };
-            this.dialogueTimer = 5000;
-            this.gameOver = true;
-        }
-    }
-
-    nextLevel() {
-        this.currentLevel++;
-        this.levelCompleted = false;
-        this.levelStartTime = Date.now();
-        
-        // Resetear cámara para nuevo nivel
-        this.camera.x = 0;
-        
-        this.platforms = this.generatePlatforms(this.currentLevel);
-        this.decorations = this.generateDecorations(this.currentLevel);
-        this.enemies = [];
-        this.gems = [];
-        this.projectiles = [];
-        this.particles = [];
-        this.boss = null;
-        this.maxEnemies = 2 + this.currentLevel;
-        this.enemySpawnInterval = 3000 - (this.currentLevel * 200);
-        this.player.health = this.player.maxHealth;
-        this.player.enemiesDefeated = 0;
-        this.player.survivalTime = 0;
-        this.player.x = 200; // Resetear posición del jugador
-        
-        // Mostrar breve transición entre niveles (estilo Metal Slug)
-        this.showLevelTransition();
-    }
-
-    // Breve transición entre niveles (estilo Metal Slug)
-    showLevelTransition() {
-        const environment = this.levelEnvironments[this.currentLevel - 1];
-        this.currentDialogue = {
-            title: `${environment.name}`,
-            text: `Nivel ${this.currentLevel}`,
-            objective: "¡Prepárate para la batalla!",
-            duration: 1500 // Más breve que antes
-        };
-        this.dialogueTimer = 1500;
-    }
-
     updateHUD() {
         document.getElementById('score').textContent = this.score;
         document.getElementById('level').textContent = this.currentLevel;
@@ -802,20 +661,50 @@ export class StoryMode {
         // Obtener entorno actual
         const environment = this.levelEnvironments[this.currentLevel - 1];
         
-        // Manejar video de fondo para nivel 1
-        if (this.currentLevel === 1 && this.castleVideo) {
-            this.castleVideo.style.display = 'block'; // Mostrar video en nivel 1
-            // Forzar reproducción del video
-            if (this.castleVideo.paused) {
-                this.castleVideo.play().catch(e => console.log('Error reproduciendo video:', e));
-            }
-            // Limpiar canvas completamente para evitar rastros
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        } else {
-            // Ocultar video en otros niveles
+        // Manejar fondo para nivel 1 - usar GIF animado con desplazamiento
+        if (this.currentLevel === 1) {
+            // Ocultar video si existe
             if (this.castleVideo) {
                 this.castleVideo.style.display = 'none';
             }
+            
+            // Limpiar canvas con color del cielo primero
+            this.ctx.fillStyle = environment.skyColor;
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // Dibujar GIF animado si está cargado
+            if (this.castleGifLoaded && this.castleGif) {
+                // Calcular escala para que el GIF cubra toda la pantalla
+                const scaleX = this.canvas.width / this.castleGif.width;
+                const scaleY = this.canvas.height / this.castleGif.height;
+                const scale = Math.max(scaleX, scaleY) * 2.5; // Más grande para mejor efecto
+                
+                const gifWidth = this.castleGif.width * scale;
+                const gifHeight = this.castleGif.height * scale;
+                
+                // Dibujar múltiples capas de paralaje para mayor profundidad
+                for (const layer of this.parallaxLayers) {
+                    const cameraOffset = this.camera.x * layer.speed;
+                    const repetitions = Math.ceil((this.canvas.width + gifWidth) / gifWidth) + 1;
+                    
+                    this.ctx.globalAlpha = layer.alpha;
+                    
+                    // Dibujar múltiples copias para crear efecto infinito
+                    for (let i = 0; i < repetitions; i++) {
+                        const gifX = -cameraOffset + (i * gifWidth);
+                        const gifY = (this.canvas.height - gifHeight) / 2;
+                        this.ctx.drawImage(this.castleGif, gifX, gifY, gifWidth, gifHeight);
+                    }
+                }
+                
+                this.ctx.globalAlpha = 1.0;
+            }
+        } else {
+            // Ocultar video y GIF en otros niveles
+            if (this.castleVideo) {
+                this.castleVideo.style.display = 'none';
+            }
+            
             // Limpiar canvas con color del cielo del nivel
             this.ctx.fillStyle = environment.skyColor;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -889,29 +778,6 @@ export class StoryMode {
         // Restaurar estado del contexto (quitar cámara)
         this.ctx.restore();
 
-        // Dibujar diálogo
-        if (this.currentDialogue) {
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-            this.ctx.fillRect(50, this.canvas.height - 250, this.canvas.width - 100, 200);
-            
-            this.ctx.fillStyle = '#FFD700';
-            this.ctx.font = '24px Arial';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText(this.currentDialogue.title, this.canvas.width / 2, this.canvas.height - 210);
-            
-            this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.font = '18px Arial';
-            this.ctx.fillText(this.currentDialogue.text, this.canvas.width / 2, this.canvas.height - 170);
-            
-            this.ctx.fillStyle = '#00FF00';
-            this.ctx.fillText(this.currentDialogue.objective, this.canvas.width / 2, this.canvas.height - 130);
-            
-            // Instrucción para continuar
-            this.ctx.fillStyle = '#FFFF00';
-            this.ctx.font = '16px Arial';
-            this.ctx.fillText('Presiona ESPACIO o ENTER para continuar', this.canvas.width / 2, this.canvas.height - 90);
-        }
-
         // UI de pausa
         if (this.paused) {
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -966,6 +832,10 @@ export class StoryMode {
 
     gameLoop() {
         const loop = () => {
+            const currentTime = Date.now();
+            const deltaTime = currentTime - this.lastFrameTime;
+            this.lastFrameTime = currentTime;
+            
             if (!this.gameOver && !this.paused) {
                 this.handleInput();
                 this.updatePhysics();
