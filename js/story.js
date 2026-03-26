@@ -180,6 +180,48 @@ export class StoryMode {
         // Sistema de disparo
         this.lastShootTime = 0;
         this.shootCooldown = 250; // ms entre disparos
+        
+        // Imágenes del personaje
+        this.knightImage = new Image();
+        this.knightImageLoaded = false;
+        this.knightImage.onload = () => {
+            this.knightImageLoaded = true;
+            console.log('Imagen del caballero cargada correctamente', this.knightImage.src, this.knightImage.width, this.knightImage.height);
+        };
+        this.knightImage.onerror = () => {
+            console.error('Error cargando imagen del caballero');
+        };
+        this.knightImage.src = 'img/Caballero prueba parado.png';
+        
+        // Imagen para estado idle (parado)
+        this.knightIdleImage = new Image();
+        this.knightIdleImageLoaded = false;
+        this.knightIdleImage.onload = () => {
+            this.knightIdleImageLoaded = true;
+            console.log('Imagen del caballero parado cargada correctamente', this.knightIdleImage.src, this.knightIdleImage.width, this.knightIdleImage.height);
+        };
+        this.knightIdleImage.onerror = () => {
+            console.error('Error cargando imagen del caballero parado');
+        };
+        this.knightIdleImage.src = 'img/Caballero prueba parado.png';
+        
+        // Sistema de animación
+        this.animationState = 'idle'; // idle, walking, jumping, attacking
+        this.animationFrame = 0;
+        this.animationTimer = 0;
+        this.animationSpeed = 100; // ms entre frames
+        
+        // Espada para el ataque
+        this.swordImage = new Image();
+        this.swordImageLoaded = false;
+        this.swordImage.onload = () => {
+            this.swordImageLoaded = true;
+            console.log('Imagen de espada cargada correctamente');
+        };
+        this.swordImage.onerror = () => {
+            console.error('Error cargando imagen de espada');
+        };
+        this.swordImage.src = 'img/Espada Legendaria Excalibur.png';
 
         // Jefe (para nivel 4)
         this.boss = null;
@@ -402,6 +444,8 @@ export class StoryMode {
         }
         
         this.lastShootTime = currentTime;
+        this.animationState = 'attacking';
+        this.animationFrame = 0; // Reiniciar frame de ataque
         
         const projectile = {
             x: this.player.x + (this.player.facing > 0 ? this.player.width / 2 : -this.player.width / 2),
@@ -650,6 +694,29 @@ export class StoryMode {
                obj1.y + obj1.height > obj2.y;
     }
 
+    updateAnimations(deltaTime) {
+        this.animationTimer += deltaTime;
+        
+        // Determinar cuántos frames tiene la animación actual
+        let maxFrames = 7;
+        if (this.animationState === 'idle') maxFrames = 6;
+        if (this.animationState === 'jumping') maxFrames = 5;
+        
+        if (this.animationTimer >= this.animationSpeed) {
+            this.animationTimer = 0;
+            this.animationFrame = (this.animationFrame + 1) % maxFrames;
+        }
+        
+        // Determinar estado de animación según el movimiento del jugador
+        if (this.player.velocityY !== 0 && !this.player.isGrounded) {
+            this.animationState = 'jumping';
+        } else if (Math.abs(this.player.velocityX) > 0.5) {
+            this.animationState = 'walking';
+        } else {
+            this.animationState = 'idle';
+        }
+    }
+
     updateHUD() {
         document.getElementById('score').textContent = this.score;
         document.getElementById('level').textContent = this.currentLevel;
@@ -758,21 +825,73 @@ export class StoryMode {
             this.ctx.fillRect(projectile.x, projectile.y, projectile.width, projectile.height);
         }
 
-        // Dibujar jugador
-        this.ctx.fillStyle = this.player.color;
-        this.ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height);
+        // Determinar qué imagen usar según el estado
+        let currentImage = this.knightImage;
+        let imageLoaded = this.knightImageLoaded;
         
-        // Ojos del jugador
-        this.ctx.fillStyle = '#FFFFFF';
-        const eyeX = this.player.facing > 0 ? this.player.x + this.player.width - 10 : this.player.x + 5;
-        this.ctx.fillRect(eyeX, this.player.y + 10, 5, 5);
+        if (this.animationState === 'idle' && this.knightIdleImageLoaded) {
+            currentImage = this.knightIdleImage;
+            imageLoaded = this.knightIdleImageLoaded;
+        }
+
+        console.log('Estado de dibujo:', {
+            animationState: this.animationState,
+            imageLoaded: imageLoaded,
+            currentImageSrc: currentImage?.src,
+            playerPosition: { x: this.player.x, y: this.player.y },
+            knightImageLoaded: this.knightImageLoaded,
+            knightIdleImageLoaded: this.knightIdleImageLoaded
+        });
+
+        if (imageLoaded && currentImage) {
+            // Usar siempre la imagen completa ya que solo tenemos una imagen
+            const spriteWidth = currentImage.width;
+            const spriteHeight = currentImage.height;
+            
+            console.log('Dimensiones de sprite:', {
+                spriteWidth,
+                spriteHeight,
+                imageWidth: currentImage.width,
+                imageHeight: currentImage.height
+            });
+
+            this.ctx.save();
+            
+            // Voltear si mira a la izquierda
+            if (this.player.facing < 0) {
+                this.ctx.translate(this.player.x, this.player.y); 
+                this.ctx.scale(-1, 1);
+                this.ctx.translate(-this.player.x, -this.player.y);
+            }
+            
+            // DIBUJO SIMPLE - usar la misma imagen para todos los estados
+            this.ctx.drawImage(
+                currentImage,
+                this.player.x - spriteWidth/2,
+                this.player.y - spriteHeight/2,
+                spriteWidth,
+                spriteHeight
+            );
+            
+            this.ctx.restore();
+        }
+         else {
+            // Si la imagen no carga, dibujar el rectángulo rojo de respaldo
+            const fallbackWidth = 60;
+            const fallbackHeight = 80;
+            this.ctx.fillStyle = 'red';
+            this.ctx.fillRect(this.player.x - fallbackWidth/2, this.player.y - fallbackHeight/2, fallbackWidth, fallbackHeight);
+        }
 
         // Dibujar partículas
         for (const particle of this.particles) {
-            this.ctx.globalAlpha = particle.life / 100;
             this.ctx.fillStyle = particle.color;
-            this.ctx.fillRect(particle.x, particle.y, 3, 3);
+            this.ctx.globalAlpha = particle.life / 100;
+            this.ctx.beginPath();
+            this.ctx.arc(particle.x, particle.y, 3, 0, Math.PI * 2);
+            this.ctx.fill();
         }
+        
         this.ctx.globalAlpha = 1.0;
 
         // Restaurar estado del contexto (quitar cámara)
@@ -835,6 +954,9 @@ export class StoryMode {
             const currentTime = Date.now();
             const deltaTime = currentTime - this.lastFrameTime;
             this.lastFrameTime = currentTime;
+            
+            // Actualizar animaciones
+            this.updateAnimations(deltaTime);
             
             if (!this.gameOver && !this.paused) {
                 this.handleInput();
