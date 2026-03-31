@@ -192,11 +192,74 @@ export class StoryMode {
         };
         this.knightIdleImage.src = 'img/Caballero prueba parado.png';
         
+        // Sprite sheet para estado caminando
+        this.knightWalkImage = new Image();
+        this.knightWalkImageLoaded = false;
+        this.knightWalkImage.onload = () => {
+            this.knightWalkImageLoaded = true;
+            console.log('Sprite sheet de caminata cargado correctamente', this.knightWalkImage.src, this.knightWalkImage.width, this.knightWalkImage.height);
+            
+            // Calcular dimensiones del sprite sheet - intentar diferentes configuraciones
+            const imgWidth = this.knightWalkImage.width;
+            const imgHeight = this.knightWalkImage.height;
+            
+            // Intentar detectar automáticamente el número de frames
+            // Asumir que los frames son cuadrados o rectangulares similares
+            const possibleFrameCounts = [4, 6, 8, 10, 12];
+            let bestConfig = null;
+            
+            for (let frames of possibleFrameCounts) {
+                const frameWidth = imgWidth / frames;
+                const frameHeight = imgHeight;
+                
+                // Verificar si las dimensiones son razonables (entre 30-200px)
+                if (frameWidth >= 30 && frameWidth <= 200 && frameHeight >= 30 && frameHeight <= 200) {
+                    bestConfig = {
+                        frameWidth: Math.floor(frameWidth),
+                        frameHeight: Math.floor(frameHeight),
+                        framesPerRow: frames,
+                        totalFrames: frames,
+                        currentRow: 0
+                    };
+                    break;
+                }
+            }
+            
+            if (bestConfig) {
+                this.walkSheetConfig = bestConfig;
+                console.log('Configuración sprite sheet caminata detectada:', this.walkSheetConfig);
+            } else {
+                // Fallback: asumir 6 frames
+                this.walkSheetConfig = {
+                    frameWidth: Math.floor(imgWidth / 6),
+                    frameHeight: imgHeight,
+                    framesPerRow: 6,
+                    totalFrames: 6,
+                    currentRow: 0
+                };
+                console.log('Usando configuración fallback sprite sheet:', this.walkSheetConfig);
+            }
+        };
+        this.knightWalkImage.onerror = () => {
+            console.error('Error cargando sprite sheet de caminata');
+        };
+        this.knightWalkImage.src = 'img/Caminar.png';
+        
         // Sistema de animación
         this.animationState = 'idle'; // idle, walking, jumping, attacking
         this.animationFrame = 0;
         this.animationTimer = 0;
         this.animationSpeed = 100; // ms entre frames
+        this.walkAnimationSpeed = 80; // Velocidad más rápida para caminar (más fluida)
+        
+        // Configuración del sprite sheet de caminata
+        this.walkSheetConfig = {
+            frameWidth: 0,  // Se calculará cuando se cargue la imagen
+            frameHeight: 0, // Se calculará cuando se cargue la imagen
+            framesPerRow: 0, // Se calculará cuando se cargue la imagen
+            totalFrames: 0,  // Se calculará cuando se cargue la imagen
+            currentRow: 0    // Fila actual del sprite sheet
+        };
         
         // Duende para enemigos básicos
         this.duendeImage = new Image();
@@ -839,29 +902,40 @@ export class StoryMode {
     updateAnimations(deltaTime) {
         this.animationTimer += deltaTime;
         
-        // Determinar cuántos frames tiene la animación actual
-        let maxFrames = 7;
-        if (this.animationState === 'idle') maxFrames = 6;
-        if (this.animationState === 'jumping') maxFrames = 5;
+        // SOLO enfocados en animación de caminar
+        let maxFrames = 1; // Default para imágenes estáticas
+        let currentAnimationSpeed = this.animationSpeed;
         
-        if (this.animationTimer >= this.animationSpeed) {
-            this.animationTimer = 0;
-            this.animationFrame = (this.animationFrame + 1) % maxFrames;
+        // Si el jugador está caminando (movimiento horizontal significativo)
+        if (Math.abs(this.player.velocityX) > 0.5) {
+            this.animationState = 'walking';
+            maxFrames = this.walkSheetConfig.totalFrames || 6;
+            currentAnimationSpeed = this.walkAnimationSpeed;
+        } else {
+            // Si no está caminando, volver a idle
+            this.animationState = 'idle';
+            maxFrames = 1;
         }
         
-        // Determinar estado de animación según el movimiento del jugador
-        if (this.player.velocityY !== 0 && !this.player.isGrounded) {
-            this.animationState = 'jumping';
-        } else if (Math.abs(this.player.velocityX) > 0.5) {
-            this.animationState = 'walking';
+        // Actualizar frame solo si está caminando
+        if (this.animationState === 'walking') {
+            if (this.animationTimer >= currentAnimationSpeed) {
+                this.animationTimer = 0;
+                this.animationFrame = (this.animationFrame + 1) % maxFrames;
+            }
         } else {
-            this.animationState = 'idle';
+            // Resetear frame cuando no está caminando
+            this.animationFrame = 0;
+            this.animationTimer = 0;
         }
     }
 
     // updateHUD() eliminada - HUD ahora se dibuja directamente en el canvas
 
     render() {
+        // Limpiar completamente el canvas al inicio de cada frame
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
         // Obtener entorno del escenario
         const environment = this.environment;
         
@@ -1005,36 +1079,24 @@ export class StoryMode {
             }
         }
 
-        // Determinar qué imagen usar según el estado
+        // SOLO enfocado en caminar vs idle
         let currentImage = this.knightImage;
         let imageLoaded = this.knightImageLoaded;
+        let useSpriteSheet = false;
         
-        if (this.animationState === 'idle' && this.knightIdleImageLoaded) {
+        if (this.animationState === 'walking' && this.knightWalkImageLoaded) {
+            // Usar sprite sheet solo cuando camina
+            currentImage = this.knightWalkImage;
+            imageLoaded = this.knightWalkImageLoaded;
+            useSpriteSheet = true;
+        } else if (this.animationState === 'idle' && this.knightIdleImageLoaded) {
+            // Usar imagen idle cuando está quieto
             currentImage = this.knightIdleImage;
             imageLoaded = this.knightIdleImageLoaded;
+            useSpriteSheet = false;
         }
 
-        console.log('Estado de dibujo:', {
-            animationState: this.animationState,
-            imageLoaded: imageLoaded,
-            currentImageSrc: currentImage?.src,
-            playerPosition: { x: this.player.x, y: this.player.y },
-            knightImageLoaded: this.knightImageLoaded,
-            knightIdleImageLoaded: this.knightIdleImageLoaded
-        });
-
         if (imageLoaded && currentImage) {
-            // Usar siempre la imagen completa ya que solo tenemos una imagen
-            const spriteWidth = currentImage.width;
-            const spriteHeight = currentImage.height;
-            
-            console.log('Dimensiones de sprite:', {
-                spriteWidth,
-                spriteHeight,
-                imageWidth: currentImage.width,
-                imageHeight: currentImage.height
-            });
-
             this.ctx.save();
             
             // Voltear si mira a la izquierda
@@ -1044,14 +1106,42 @@ export class StoryMode {
                 this.ctx.translate(-this.player.x, -this.player.y);
             }
             
-            // DIBUJO SIMPLE - usar la misma imagen para todos los estados
-            this.ctx.drawImage(
-                currentImage,
-                this.player.x - spriteWidth/2,
-                this.player.y - spriteHeight/2,
-                spriteWidth,
-                spriteHeight
-            );
+            if (useSpriteSheet && this.animationState === 'walking') {
+                // SPRITE SHEET DE CAMINAR - simplificado y directo
+                const frameWidth = this.walkSheetConfig.frameWidth;
+                const frameHeight = this.walkSheetConfig.frameHeight;
+                const frameX = this.animationFrame * frameWidth;
+                const frameY = 0; // Siempre primera fila
+                
+                if (frameWidth > 0 && frameHeight > 0) {
+                    const scale = 1.2;
+                    const scaledWidth = frameWidth * scale;
+                    const scaledHeight = frameHeight * scale;
+                    
+                    this.ctx.drawImage(
+                        currentImage,                    // Sprite sheet completo
+                        frameX, frameY, frameWidth, frameHeight,  // Frame específico
+                        this.player.x - scaledWidth/2, 
+                        this.player.y - scaledHeight/2, 
+                        scaledWidth, scaledHeight
+                    );
+                }
+            } else {
+                // IMAGEN ESTÁTICA (idle o fallback)
+                const spriteWidth = currentImage.width;
+                const spriteHeight = currentImage.height;
+                const scale = 1.2;
+                const scaledWidth = spriteWidth * scale;
+                const scaledHeight = spriteHeight * scale;
+                
+                this.ctx.drawImage(
+                    currentImage,
+                    this.player.x - scaledWidth/2,
+                    this.player.y - scaledHeight/2,
+                    scaledWidth,
+                    scaledHeight
+                );
+            }
             
             this.ctx.restore();
         }
