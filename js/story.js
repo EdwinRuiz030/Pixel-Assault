@@ -2,7 +2,7 @@
 export class StoryMode {
     constructor() {
         console.log('=== INICIO CONSTRUCTOR STORY MODE ===');
-        
+
         // Configuración del juego
         this.config = {
             width: window.innerWidth,
@@ -32,12 +32,12 @@ export class StoryMode {
             // Forzar reproducción del video
             this.castleVideo.play().catch(e => console.log('Error reproduciendo video:', e));
         }
-        
+
         // Intentar usar el GIF convirtiéndolo a video con canvas
         this.castleGif = new Image();
         this.castleGifLoaded = false;
         // Eliminamos la animación automática para que solo se mueva con la cámara
-        
+
         this.castleGif.onload = () => {
             this.castleGifLoaded = true;
             console.log('GIF del castillo animado cargado correctamente - Dimensiones:', this.castleGif.width, 'x', this.castleGif.height);
@@ -47,23 +47,23 @@ export class StoryMode {
             this.castleGifLoaded = false;
         };
         this.castleGif.src = 'img/castillo animado.gif';
-        
+
         // Restaurar capas de paralaje para mayor profundidad
         this.parallaxLayers = [
             { speed: 0.05, alpha: 0.3 }, // Capa más lejana
             { speed: 0.1, alpha: 0.4 }, // Capa media
             { speed: 0.15, alpha: 0.5 }  // Capa cercana
         ];
-        
+
         // Configurar dimensiones del canvas
         this.canvas.width = this.config.width;
         this.canvas.height = this.config.height;
-        
+
         // Forzar que el canvas ocupe toda la pantalla
         this.canvas.style.width = '100%';
         this.canvas.style.height = '100%';
         this.canvas.style.display = 'block';
-        
+
         console.log('Canvas configurado - Dimensiones:', this.canvas.width, 'x', this.canvas.height);
 
         // Estado del juego
@@ -157,7 +157,7 @@ export class StoryMode {
 
         // Efectos visuales
         this.particles = [];
-        
+
         // Sistema de disparo
         this.lastShootTime = 0;
         this.shootCooldown = 250; // ms entre disparos individuales
@@ -167,7 +167,7 @@ export class StoryMode {
         this.burstDelay = 500; // Tiempo de espera entre ráfagas
         this.lastBurstTime = 0; // Tiempo de la última ráfaga
         this.isBurstMode = false; // Modo actual: individual o ráfaga
-        
+
         // Imágenes del personaje
         this.knightImage = new Image();
         this.knightImageLoaded = false;
@@ -179,7 +179,7 @@ export class StoryMode {
             console.error('Error cargando imagen del caballero');
         };
         this.knightImage.src = 'img/Caballero prueba parado.png';
-        
+
         // Imagen para estado idle (parado)
         this.knightIdleImage = new Image();
         this.knightIdleImageLoaded = false;
@@ -191,27 +191,27 @@ export class StoryMode {
             console.error('Error cargando imagen del caballero parado');
         };
         this.knightIdleImage.src = 'img/Caballero prueba parado.png';
-        
+
         // Sprite sheet para estado caminando
         this.knightWalkImage = new Image();
         this.knightWalkImageLoaded = false;
         this.knightWalkImage.onload = () => {
             this.knightWalkImageLoaded = true;
             console.log('Sprite sheet de caminata cargado correctamente', this.knightWalkImage.src, this.knightWalkImage.width, this.knightWalkImage.height);
-            
+
             // Calcular dimensiones del sprite sheet - intentar diferentes configuraciones
             const imgWidth = this.knightWalkImage.width;
             const imgHeight = this.knightWalkImage.height;
-            
+
             // Intentar detectar automáticamente el número de frames
             // Asumir que los frames son cuadrados o rectangulares similares
             const possibleFrameCounts = [4, 6, 8, 10, 12];
             let bestConfig = null;
-            
+
             for (let frames of possibleFrameCounts) {
                 const frameWidth = imgWidth / frames;
                 const frameHeight = imgHeight;
-                
+
                 // Verificar si las dimensiones son razonables (entre 30-200px)
                 if (frameWidth >= 30 && frameWidth <= 200 && frameHeight >= 30 && frameHeight <= 200) {
                     bestConfig = {
@@ -224,7 +224,7 @@ export class StoryMode {
                     break;
                 }
             }
-            
+
             if (bestConfig) {
                 this.walkSheetConfig = bestConfig;
                 console.log('Configuración sprite sheet caminata detectada:', this.walkSheetConfig);
@@ -244,14 +244,28 @@ export class StoryMode {
             console.error('Error cargando sprite sheet de caminata');
         };
         this.knightWalkImage.src = 'img/Caminar.png';
-        
+
+        // Imagen para salto
+        this.knightJumpImage = new Image();
+        this.knightJumpImageLoaded = false;
+        this.knightJumpImage.onload = () => { this.knightJumpImageLoaded = true; };
+        this.knightJumpImage.onerror = () => { console.log('Salto.png no encontrado aún (opcional)'); };
+        this.knightJumpImage.src = 'img/Salto.png';
+
+        // Imagen para ataque
+        this.knightAttackImage = new Image();
+        this.knightAttackImageLoaded = false;
+        this.knightAttackImage.onload = () => { this.knightAttackImageLoaded = true; };
+        this.knightAttackImage.onerror = () => { console.log('Ataque.png no encontrado aún (opcional)'); };
+        this.knightAttackImage.src = 'img/Ataque.png';
+
         // Sistema de animación
         this.animationState = 'idle'; // idle, walking, jumping, attacking
         this.animationFrame = 0;
         this.animationTimer = 0;
         this.animationSpeed = 100; // ms entre frames
-        this.walkAnimationSpeed = 80; // Velocidad más rápida para caminar (más fluida)
-        
+        this.walkAnimationSpeed = 2000; // Velocidad sumamente lenta (600ms por frame)
+
         // Configuración del sprite sheet de caminata
         this.walkSheetConfig = {
             frameWidth: 0,  // Se calculará cuando se cargue la imagen
@@ -260,7 +274,7 @@ export class StoryMode {
             totalFrames: 0,  // Se calculará cuando se cargue la imagen
             currentRow: 0    // Fila actual del sprite sheet
         };
-        
+
         // Duende para enemigos básicos
         this.duendeImage = new Image();
         this.duendeImageLoaded = false;
@@ -295,18 +309,18 @@ export class StoryMode {
             console.error('No se puede inicializar el juego - canvas o contexto no disponible');
             return;
         }
-        
+
         this.setupControls();
         this.setupMouseControls();
         // Eliminado showLevelIntro() y updateHUD() para empezar directamente con acción
         this.gameLoop();
-        
+
         console.log('Constructor StoryMode completado - Canvas listo');
     }
 
     generatePlatforms() {
         const platforms = [];
-        
+
         // Plataforma base del suelo
         platforms.push({
             x: 0,
@@ -315,7 +329,7 @@ export class StoryMode {
             height: 50,
             color: this.environment.groundColor
         });
-        
+
         // Plataformas flotantes (diseño fijo para el escenario)
         const floatingPlatforms = [
             { x: 400, y: 450, width: 120, height: 20 },
@@ -339,14 +353,14 @@ export class StoryMode {
             { x: 5400, y: 320, width: 120, height: 20 },
             { x: 5700, y: 400, width: 100, height: 20 }
         ];
-        
+
         floatingPlatforms.forEach(platform => {
             platforms.push({
                 ...platform,
                 color: this.environment.platformColor
             });
         });
-        
+
         return platforms;
     }
 
@@ -354,12 +368,12 @@ export class StoryMode {
     generateDecorations() {
         const decorations = [];
         const decorationCount = 40; // Cantidad fija para el escenario
-        
+
         // Generar árboles (decoración principal del Reino Pacífico)
         for (let i = 0; i < decorationCount; i++) {
             const x = Math.random() * this.worldWidth;
             const y = this.config.height - 150 + Math.random() * 80; // Árboles en el suelo
-            
+
             decorations.push({
                 x: x,
                 y: y,
@@ -368,7 +382,7 @@ export class StoryMode {
                 height: 60
             });
         }
-        
+
         return decorations;
     }
 
@@ -376,8 +390,8 @@ export class StoryMode {
     renderDecorations() {
         for (const decoration of this.decorations) {
             this.ctx.fillStyle = decoration.color;
-            
-            switch(decoration.type) {
+
+            switch (decoration.type) {
                 case 'tree':
                     // Tronco
                     this.ctx.fillRect(decoration.x + 10, decoration.y + 20, 10, 30);
@@ -386,7 +400,7 @@ export class StoryMode {
                     this.ctx.arc(decoration.x + 15, decoration.y + 15, 15, 0, Math.PI * 2);
                     this.ctx.fill();
                     break;
-                    
+
                 case 'dead_tree':
                     // Tronco retorcido
                     this.ctx.fillRect(decoration.x + 8, decoration.y + 30, 8, 40);
@@ -394,7 +408,7 @@ export class StoryMode {
                     this.ctx.fillRect(decoration.x + 5, decoration.y + 20, 20, 3);
                     this.ctx.fillRect(decoration.x, decoration.y + 15, 25, 3);
                     break;
-                    
+
                 case 'torch':
                     // Poste
                     this.ctx.fillRect(decoration.x + 6, decoration.y + 10, 3, 20);
@@ -409,20 +423,20 @@ export class StoryMode {
                     this.ctx.fill();
                     this.ctx.fillStyle = decoration.color;
                     break;
-                    
+
                 case 'crystal':
                     // Cristal brillante
                     this.ctx.save();
-                    this.ctx.translate(decoration.x + decoration.width/2, decoration.y + decoration.height/2);
+                    this.ctx.translate(decoration.x + decoration.width / 2, decoration.y + decoration.height / 2);
                     this.ctx.rotate(Math.PI / 4);
-                    this.ctx.fillRect(-decoration.width/2, -decoration.height/2, decoration.width, decoration.height);
+                    this.ctx.fillRect(-decoration.width / 2, -decoration.height / 2, decoration.width, decoration.height);
                     this.ctx.restore();
                     // Brillo
                     this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
                     this.ctx.fillRect(decoration.x + 2, decoration.y + 2, 4, 4);
                     this.ctx.fillStyle = decoration.color;
                     break;
-                    
+
                 case 'statue':
                     // Base
                     this.ctx.fillRect(decoration.x + 5, decoration.y + 25, 25, 15);
@@ -451,7 +465,7 @@ export class StoryMode {
 
     handleInput() {
         if (this.gameOver) return;
-        
+
         // Manejar pausa/reanudar (siempre verificar, incluso en pausa)
         if (this.keys['KeyP'] || this.keys['Escape']) {
             console.log('Tecla de pausa detectada:', {
@@ -467,7 +481,7 @@ export class StoryMode {
             console.log('Teclas limpiadas');
             return;
         }
-        
+
         // Si está en pausa, no permitir otros controles
         if (this.paused) {
             console.log('Juego en pausa, ignorando otros controles');
@@ -508,13 +522,13 @@ export class StoryMode {
 
     playerAttack() {
         const currentTime = Date.now();
-        
+
         if (this.isBurstMode) {
             // Modo Ráfaga
             if (currentTime - this.lastBurstTime < this.burstDelay) {
                 return; // Esperar entre ráfagas
             }
-            
+
             if (this.burstCount >= this.maxBurstShots) {
                 if (currentTime - this.lastBurstTime < this.burstDelay) {
                     return; // Esperar para completar la ráfaga
@@ -523,18 +537,18 @@ export class StoryMode {
                 this.burstCount = 0;
                 this.lastBurstTime = currentTime;
             }
-            
+
             if (currentTime - this.lastShootTime < this.burstCooldown) {
                 return; // Esperar entre disparos de la ráfaga
             }
-            
+
             this.lastShootTime = currentTime;
             this.burstCount++;
-            
+
             if (this.burstCount === 1) {
                 this.lastBurstTime = currentTime;
             }
-            
+
         } else {
             // Modo Individual
             if (currentTime - this.lastShootTime < this.shootCooldown) {
@@ -542,10 +556,11 @@ export class StoryMode {
             }
             this.lastShootTime = currentTime;
         }
-        
+
         this.animationState = 'attacking';
         this.animationFrame = 0; // Reiniciar frame de ataque
-        
+        this.attackAnimationTimer = Date.now(); // Guardar tiempo de inicio de ataque
+
         const projectile = {
             x: this.player.x + (this.player.facing > 0 ? this.player.width / 2 : -this.player.width / 2),
             y: this.player.y,
@@ -576,10 +591,10 @@ export class StoryMode {
 
         // Actualizar cámara para seguir al jugador (manual)
         const targetCameraX = this.player.x - this.config.width / 2;
-        
+
         // Suavizar movimiento de la cámara
         this.camera.x += (targetCameraX - this.camera.x) * 0.1;
-        
+
         // Limitar cámara a los bordes del mundo
         if (this.camera.x < 0) this.camera.x = 0;
         if (this.camera.x > this.worldWidth - this.config.width) {
@@ -662,16 +677,21 @@ export class StoryMode {
             this.enemySpawnTimer = 0;
         }
 
-        // Spawn de jefe en nivel 4
-        if (this.currentLevel === 4 && !this.boss && this.player.enemiesDefeated >= 10) {
+        // Spawn de jefe (tras 10 enemigos derrotados) - Desactivado temporalmente
+        /*
+        if (!this.boss && this.player.enemiesDefeated >= 10) {
             this.spawnBoss();
         }
+        */
+
+        // Limpiar memoria: despawnear enemigos que se han quedado muy atrás de la cámara
+        this.enemies = this.enemies.filter(enemy => enemy.x >= this.camera.x - 800);
 
         // Actualizar posición y física de enemigos
         for (const enemy of this.enemies) {
             // Aplicar gravedad siempre
             enemy.velocityY += this.config.gravity;
-            
+
             // Limitar velocidad de caída máxima
             if (enemy.velocityY > 15) {
                 enemy.velocityY = 15;
@@ -685,11 +705,11 @@ export class StoryMode {
             if (distance > 0) {
                 const moveX = (dx / distance) * 1.5; // Movimiento horizontal
                 enemy.x += moveX;
-                
+
                 // Detectar si hay una plataforma adelante y saltar si es necesario
                 const nextX = enemy.x + moveX * 10; // Predecir posición futura
                 const needsJump = this.shouldEnemyJump(enemy, nextX);
-                
+
                 // Solo saltar si está en el suelo y realmente necesita saltar
                 if (needsJump && enemy.isGrounded && Math.random() > 0.3) { // 70% de probabilidad de saltar
                     enemy.velocityY = -this.config.jumpPower * 0.8; // Salto del enemigo
@@ -704,7 +724,7 @@ export class StoryMode {
 
             // Resetear estado de grounded
             enemy.isGrounded = false;
-            
+
             // Verificar colisión con plataformas (excepto el suelo principal)
             for (const platform of this.platforms) {
                 if (platform.y < this.config.height - 60) { // Ignorar suelo principal aquí
@@ -720,7 +740,7 @@ export class StoryMode {
                     }
                 }
             }
-            
+
             // Siempre verificar colisión con el suelo principal como respaldo FINAL
             if (enemy.y + enemy.height >= this.config.height - 50) {
                 const wasFloating = enemy.y + enemy.height > this.config.height - 45;
@@ -744,14 +764,14 @@ export class StoryMode {
         for (const enemy of this.enemies) {
             const groundY = this.config.height - 50;
             const enemyBottom = enemy.y + enemy.height;
-            
+
             // Si el enemigo está por debajo del suelo o flotando muy cerca
             if (enemyBottom > groundY - 5) {
                 enemy.y = groundY - enemy.height;
                 enemy.velocityY = 0;
                 enemy.isGrounded = true;
                 enemy.isJumping = false;
-                
+
                 if (enemyBottom > groundY + 1) {
                     console.log('CORRECCIÓN FORZADA - Enemigo estaba bajo el suelo:', enemyBottom - groundY, 'px');
                 }
@@ -782,15 +802,15 @@ export class StoryMode {
         for (const platform of this.platforms) {
             // Ignorar el suelo principal
             if (platform.y >= this.config.height - 60) continue;
-            
+
             // Verificar si la plataforma está en el rango Y del enemigo y en su camino
             const platformTop = platform.y;
             const platformBottom = platform.y + platform.height;
             const enemyBottom = enemy.y + enemy.height;
-            
+
             // Si la plataforma está a la altura del enemigo y en su camino
             if (platformTop <= enemyBottom + 50 && platformBottom >= enemyBottom) {
-                if ((enemy.x < platform.x && nextX >= platform.x) || 
+                if ((enemy.x < platform.x && nextX >= platform.x) ||
                     (enemy.x > platform.x + platform.width && nextX <= platform.x + platform.width)) {
                     return true;
                 }
@@ -831,7 +851,7 @@ export class StoryMode {
         // Spawn enemigos dentro del área visible de la cámara
         const spawnX = this.camera.x + this.config.width - 100; // Aparecer en el borde derecho visible
         const groundY = this.config.height - 50; // Superficie del piso marrón
-        
+
         const enemy = {
             x: spawnX,
             y: groundY, // Posición inicial en la superficie del piso
@@ -844,11 +864,11 @@ export class StoryMode {
             isGrounded: true, // Comenzar en el suelo
             isJumping: false
         };
-        
+
         // Ajustar para que la base del sprite toque el piso
         enemy.y = groundY - enemy.height;
         enemy.velocityY = 0;
-        
+
         this.enemies.push(enemy);
         console.log('Enemigo spawn en:', spawnX, enemy.y, 'Piso en:', groundY, 'Altura enemigo:', enemy.height);
     }
@@ -894,37 +914,52 @@ export class StoryMode {
 
     checkCollision(obj1, obj2) {
         return obj1.x < obj2.x + obj2.width &&
-               obj1.x + obj1.width > obj2.x &&
-               obj1.y < obj2.y + obj2.height &&
-               obj1.y + obj1.height > obj2.y;
+            obj1.x + obj1.width > obj2.x &&
+            obj1.y < obj2.y + obj2.height &&
+            obj1.y + obj1.height > obj2.y;
     }
 
     updateAnimations(deltaTime) {
         this.animationTimer += deltaTime;
-        
-        // SOLO enfocados en animación de caminar
-        let maxFrames = 1; // Default para imágenes estáticas
+
+        let maxFrames = 1;
         let currentAnimationSpeed = this.animationSpeed;
-        
-        // Si el jugador está caminando (movimiento horizontal significativo)
-        if (Math.abs(this.player.velocityX) > 0.5) {
-            this.animationState = 'walking';
-            maxFrames = this.walkSheetConfig.totalFrames || 6;
-            currentAnimationSpeed = this.walkAnimationSpeed;
-        } else {
-            // Si no está caminando, volver a idle
-            this.animationState = 'idle';
-            maxFrames = 1;
+
+        // 1. Prioridad: Ataque
+        if (this.animationState === 'attacking') {
+            const timeSinceAttack = Date.now() - (this.attackAnimationTimer || 0);
+            if (timeSinceAttack > 250) { // Duración del estado de ataque (ms)
+                this.animationState = 'idle';
+            } else {
+                maxFrames = 1; // Ajustable si el ataque se vuelve un sprite sheet
+            }
         }
-        
-        // Actualizar frame solo si está caminando
-        if (this.animationState === 'walking') {
+
+        // 2. Prioridad: Salto
+        if (this.animationState !== 'attacking') {
+            if (!this.player.isGrounded) {
+                this.animationState = 'jumping';
+                maxFrames = 1;
+            } else {
+                // 3. Prioridad: Caminar o Reposo
+                if (Math.abs(this.player.velocityX) > 0.5) {
+                    this.animationState = 'walking';
+                    maxFrames = this.walkSheetConfig.totalFrames || 6;
+                    currentAnimationSpeed = this.walkAnimationSpeed;
+                } else {
+                    this.animationState = 'idle';
+                    maxFrames = 1;
+                }
+            }
+        }
+
+        // Actualizar frame
+        if (maxFrames > 1) {
             if (this.animationTimer >= currentAnimationSpeed) {
                 this.animationTimer = 0;
                 this.animationFrame = (this.animationFrame + 1) % maxFrames;
             }
         } else {
-            // Resetear frame cuando no está caminando
             this.animationFrame = 0;
             this.animationTimer = 0;
         }
@@ -935,32 +970,32 @@ export class StoryMode {
     render() {
         // Limpiar completamente el canvas al inicio de cada frame
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
+
         // Obtener entorno del escenario
         const environment = this.environment;
-        
+
         // Manejar fondo - restaurar paralaje sincronizado
         if (this.castleGif && this.castleGif.complete) {
             // Ocultar video si existe
             if (this.castleVideo) {
                 this.castleVideo.style.display = 'none';
             }
-            
+
             // Limpiar canvas con color del cielo
             this.ctx.fillStyle = environment.skyColor;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            
+
             // Dimensiones del GIF
             const gifWidth = this.castleGif.width;
             const gifHeight = this.castleGif.height;
-            
+
             // Dibujar múltiples capas de paralaje para mayor profundidad
             for (const layer of this.parallaxLayers) {
                 const cameraOffset = this.camera.x * layer.speed;
                 const repetitions = Math.ceil((this.canvas.width + gifWidth) / gifWidth) + 1;
-                
+
                 this.ctx.globalAlpha = layer.alpha;
-                
+
                 // Dibujar múltiples copias para crear efecto infinito
                 for (let i = 0; i < repetitions; i++) {
                     const gifX = (i * gifWidth) - (cameraOffset % gifWidth);
@@ -968,14 +1003,14 @@ export class StoryMode {
                     this.ctx.drawImage(this.castleGif, gifX, gifY, gifWidth, gifHeight);
                 }
             }
-            
+
             this.ctx.globalAlpha = 1.0;
         } else {
             // Ocultar video y GIF si no están disponibles
             if (this.castleVideo) {
                 this.castleVideo.style.display = 'none';
             }
-            
+
             // Limpiar canvas con color del cielo del escenario
             this.ctx.fillStyle = environment.skyColor;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -983,7 +1018,7 @@ export class StoryMode {
 
         // Guardar estado del contexto para aplicar cámara
         this.ctx.save();
-        
+
         // Aplicar transformación de la cámara
         this.ctx.translate(-this.camera.x, -this.camera.y);
 
@@ -1010,7 +1045,7 @@ export class StoryMode {
                 // Duende más grande y proporcional al jugador
                 const duendeWidth = 100;  // Ancho aumentado para mejor proporción
                 const duendeHeight = 150; // Alto proporcional (1.5x el ancho)
-                
+
                 this.ctx.drawImage(
                     this.duendeImage,
                     enemy.x - duendeWidth / 2, // Centrar horizontalmente
@@ -1034,7 +1069,7 @@ export class StoryMode {
         if (this.boss) {
             this.ctx.fillStyle = this.boss.color;
             this.ctx.fillRect(this.boss.x, this.boss.y, this.boss.width, this.boss.height);
-            
+
             // Barra de vida del jefe
             // const healthPercent = this.boss.health / this.boss.maxHealth;
             // this.ctx.fillStyle = '#FF0000';
@@ -1049,10 +1084,10 @@ export class StoryMode {
                 // Dibujar Espada de Fe como proyectil horizontal
                 const swordWidth = 30;
                 const swordHeight = 20;
-                
+
                 this.ctx.save();
-                this.ctx.translate(projectile.x + projectile.width/2, projectile.y + projectile.height/2);
-                
+                this.ctx.translate(projectile.x + projectile.width / 2, projectile.y + projectile.height / 2);
+
                 // Rotar según la dirección del disparo
                 if (projectile.velocityX > 0) {
                     // Disparo hacia la derecha - rotar 90° para ponerla horizontal
@@ -1061,16 +1096,16 @@ export class StoryMode {
                     // Disparo hacia la izquierda - rotar -90° para ponerla horizontal invertida
                     this.ctx.rotate(-Math.PI / 2);
                 }
-                
+
                 // Dibujar la espada
                 this.ctx.drawImage(
                     this.swordImage,
-                    -swordWidth/2,
-                    -swordHeight/2,
+                    -swordWidth / 2,
+                    -swordHeight / 2,
                     swordWidth,
                     swordHeight
                 );
-                
+
                 this.ctx.restore();
             } else {
                 // Fallback - dibujar rectángulo simple
@@ -1079,18 +1114,31 @@ export class StoryMode {
             }
         }
 
-        // SOLO enfocado en caminar vs idle
+        // Selección de imagen basada en el estado de animación
         let currentImage = this.knightImage;
         let imageLoaded = this.knightImageLoaded;
         let useSpriteSheet = false;
-        
-        if (this.animationState === 'walking' && this.knightWalkImageLoaded) {
-            // Usar sprite sheet solo cuando camina
+
+        if (this.animationState === 'attacking' && this.knightAttackImageLoaded) {
+            currentImage = this.knightAttackImage;
+            imageLoaded = this.knightAttackImageLoaded;
+            useSpriteSheet = false; // Cambiar a true si el ataque es un sprite sheet
+        } else if (this.animationState === 'jumping' && this.knightJumpImageLoaded) {
+            currentImage = this.knightJumpImage;
+            imageLoaded = this.knightJumpImageLoaded;
+            useSpriteSheet = false;
+        } else if (this.animationState === 'walking' && this.knightWalkImageLoaded) {
             currentImage = this.knightWalkImage;
             imageLoaded = this.knightWalkImageLoaded;
             useSpriteSheet = true;
         } else if (this.animationState === 'idle' && this.knightIdleImageLoaded) {
-            // Usar imagen idle cuando está quieto
+            currentImage = this.knightIdleImage;
+            imageLoaded = this.knightIdleImageLoaded;
+            useSpriteSheet = false;
+        }
+
+        // Fallback robusto por si alguna imagen no existe aún (Salto.png o Ataque.png)
+        if (!imageLoaded) {
             currentImage = this.knightIdleImage;
             imageLoaded = this.knightIdleImageLoaded;
             useSpriteSheet = false;
@@ -1098,31 +1146,31 @@ export class StoryMode {
 
         if (imageLoaded && currentImage) {
             this.ctx.save();
-            
+
             // Voltear si mira a la izquierda
             if (this.player.facing < 0) {
-                this.ctx.translate(this.player.x, this.player.y); 
+                this.ctx.translate(this.player.x, this.player.y);
                 this.ctx.scale(-1, 1);
                 this.ctx.translate(-this.player.x, -this.player.y);
             }
-            
+
             if (useSpriteSheet && this.animationState === 'walking') {
                 // SPRITE SHEET DE CAMINAR - simplificado y directo
                 const frameWidth = this.walkSheetConfig.frameWidth;
                 const frameHeight = this.walkSheetConfig.frameHeight;
                 const frameX = this.animationFrame * frameWidth;
                 const frameY = 0; // Siempre primera fila
-                
+
                 if (frameWidth > 0 && frameHeight > 0) {
                     const scale = 1.2;
                     const scaledWidth = frameWidth * scale;
                     const scaledHeight = frameHeight * scale;
-                    
+
                     this.ctx.drawImage(
                         currentImage,                    // Sprite sheet completo
                         frameX, frameY, frameWidth, frameHeight,  // Frame específico
-                        this.player.x - scaledWidth/2, 
-                        this.player.y - scaledHeight/2, 
+                        this.player.x - scaledWidth / 2,
+                        this.player.y - scaledHeight / 2,
                         scaledWidth, scaledHeight
                     );
                 }
@@ -1133,24 +1181,24 @@ export class StoryMode {
                 const scale = 1.2;
                 const scaledWidth = spriteWidth * scale;
                 const scaledHeight = spriteHeight * scale;
-                
+
                 this.ctx.drawImage(
                     currentImage,
-                    this.player.x - scaledWidth/2,
-                    this.player.y - scaledHeight/2,
+                    this.player.x - scaledWidth / 2,
+                    this.player.y - scaledHeight / 2,
                     scaledWidth,
                     scaledHeight
                 );
             }
-            
+
             this.ctx.restore();
         }
-         else {
+        else {
             // Fallback - dibujar rectángulo simple si no hay imagen
             const fallbackWidth = 60;
             const fallbackHeight = 80;
             this.ctx.fillStyle = 'red';
-            this.ctx.fillRect(this.player.x - fallbackWidth/2, this.player.y - fallbackHeight/2, fallbackWidth, fallbackHeight);
+            this.ctx.fillRect(this.player.x - fallbackWidth / 2, this.player.y - fallbackHeight / 2, fallbackWidth, fallbackHeight);
         }
 
         // Dibujar partículas
@@ -1161,7 +1209,7 @@ export class StoryMode {
             this.ctx.arc(particle.x, particle.y, 3, 0, Math.PI * 2);
             this.ctx.fill();
         }
-        
+
         this.ctx.globalAlpha = 1.0;
 
         // Restaurar estado del contexto (quitar cámara)
@@ -1186,12 +1234,12 @@ export class StoryMode {
             this.ctx.fillStyle = '#FFFFFF';
             this.ctx.font = '48px Arial';
             this.ctx.textAlign = 'center';
-            
+
             if (this.currentLevel >= this.maxLevel) {
                 this.ctx.fillText('¡HISTORIA COMPLETADA!', this.canvas.width / 2, this.canvas.height / 2);
             } else {
                 this.ctx.fillText('HAS MUERTO, ¿DESEAS VOLVER A EMPEZAR?', this.canvas.width / 2, this.canvas.height / 2);
-                
+
                 // Dibujar botones SÍ y NO
                 this.drawGameOverButtons();
             }
@@ -1203,12 +1251,12 @@ export class StoryMode {
             const maxLives = 5;
             const currentLives = Math.max(0, Math.floor(this.player.health / 20));
             const healthPercentage = Math.max(0, Math.min(1, this.player.health / 100));
-            
+
             // Dibujar 5 corazones con diferentes estados
             for (let i = 0; i < maxLives; i++) {
                 const x = 20 + (i * 40);
                 const y = 25; // Subido más arriba
-                
+
                 if (i < currentLives) {
                     // Corazón lleno (rojo)
                     this.ctx.fillStyle = '#FF0000';
@@ -1219,18 +1267,18 @@ export class StoryMode {
                     this.drawPixelHeart(x, y, 18);
                 }
             }
-            
+
             // Dibujar barra de vida actual
             const barX = 20;
             const barY = 55; // Subido más arriba
             const barWidth = 200;
             const barHeight = 16;
             const segmentWidth = Math.floor(barWidth / 4);
-            
+
             // Fondo de la barra
             this.ctx.fillStyle = '#222222';
             this.ctx.fillRect(barX, barY, barWidth, barHeight);
-            
+
             // Segmentos de vida
             const filledSegments = Math.floor(healthPercentage * 4);
             for (let i = 0; i < 4; i++) {
@@ -1243,6 +1291,13 @@ export class StoryMode {
                 }
                 this.ctx.fillRect(barX + (i * segmentWidth), barY, segmentWidth - 1, barHeight);
             }
+
+            // DEBUG MSG ANIMACIONES
+            this.ctx.fillStyle = '#00FF00';
+            this.ctx.font = '16px monospace';
+            this.ctx.textAlign = 'left';
+            this.ctx.fillText(`CámaraX: ${Math.floor(this.camera.x)}`, 20, 95);
+            this.ctx.fillText(`Animación: ${this.animationState} | Frame: ${this.animationFrame}/${this.walkSheetConfig.totalFrames} | Timer: ${Math.floor(this.animationTimer)}/${this.walkAnimationSpeed}`, 20, 115);
         }
     }
 
@@ -1250,17 +1305,17 @@ export class StoryMode {
     drawPixelHeart(x, y, size) {
         // Matriz de píxeles para un corazón pixelado (8x11)
         const heartPixels = [
-            [0,0,1,0,0,1,0,0,1,0,0,1],
-            [0,1,1,0,1,1,0,1,1,0,1,1],
-            [1,1,1,1,1,1,1,1,1,1,1,1],
-            [1,1,1,1,0,1,0,1,0,1,0],
-            [0,0,1,0,0,1,0,0,1,0,0,1],
-            [0,0,0,0,0,0,1,0,0,0,1,0],
-            [0,0,0,0,0,0,0,0,0,0,0,0]
+            [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
+            [0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0],
+            [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
+            [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         ];
-        
+
         const pixelSize = size / 8; // 8 filas para mejor proporción
-        
+
         for (let heartRow = 0; heartRow < 8; heartRow++) {
             const currentRow = heartPixels[heartRow];
             if (!currentRow) continue; // Verificación de seguridad
@@ -1282,10 +1337,10 @@ export class StoryMode {
             const currentTime = Date.now();
             const deltaTime = currentTime - this.lastFrameTime;
             this.lastFrameTime = currentTime;
-            
+
             // Actualizar animaciones
             this.updateAnimations(deltaTime);
-            
+
             if (!this.gameOver) {
                 this.handleInput(); // Siempre llamar handleInput para poder pausar/reanudar
                 if (!this.paused) {
@@ -1293,19 +1348,19 @@ export class StoryMode {
                     // updateHUD() eliminada - HUD ahora se dibuja en canvas
                 }
             }
-            
+
             // Siempre renderizar, pero manejar estados de pausa y diálogo
             this.render();
             requestAnimationFrame(loop);
         };
-        
+
         loop();
     }
 
     stop() {
         this.gameOver = true;
     }
-    
+
     start() {
         // Reiniciar el juego si estaba detenido
         if (this.gameOver) {
@@ -1330,10 +1385,10 @@ export class StoryMode {
         [this.gameOverButtons.yes, this.gameOverButtons.no].forEach(button => {
             // Fondo del botón
             const gradient = this.ctx.createLinearGradient(
-                button.x, button.y, 
+                button.x, button.y,
                 button.x, button.y + button.height
             );
-            
+
             if (button.hovered) {
                 gradient.addColorStop(0, '#CDAF87');
                 gradient.addColorStop(1, '#8B6914');
@@ -1345,11 +1400,11 @@ export class StoryMode {
             // Borde del botón
             this.ctx.fillStyle = '#654321';
             this.ctx.fillRect(button.x - 4, button.y - 4, button.width + 8, button.height + 8);
-            
+
             // Fondo principal
             this.ctx.fillStyle = gradient;
             this.ctx.fillRect(button.x, button.y, button.width, button.height);
-            
+
             // Texto
             this.ctx.fillStyle = '#FFE5C2';
             this.ctx.font = 'bold 24px Georgia';
@@ -1362,7 +1417,7 @@ export class StoryMode {
     setupMouseControls() {
         this.canvas.addEventListener('mousemove', (e) => {
             if (!this.gameOver) return;
-            
+
             const rect = this.canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
@@ -1370,13 +1425,13 @@ export class StoryMode {
             // Verificar hover en botones
             [this.gameOverButtons.yes, this.gameOverButtons.no].forEach(button => {
                 button.hovered = mouseX >= button.x && mouseX <= button.x + button.width &&
-                               mouseY >= button.y && mouseY <= button.y + button.height;
+                    mouseY >= button.y && mouseY <= button.y + button.height;
             });
         });
 
         this.canvas.addEventListener('click', (e) => {
             if (!this.gameOver) return;
-            
+
             const rect = this.canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
