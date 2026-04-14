@@ -124,6 +124,7 @@ export class StoryMode {
             velocityX: 0,
             velocityY: 0,
             health: 100,
+            displayHealth: 100,
             maxHealth: 100,
             gems: 0,
             color: '#FFD700', // Dorado para el héroe
@@ -168,124 +169,56 @@ export class StoryMode {
         this.lastBurstTime = 0; // Tiempo de la última ráfaga
         this.isBurstMode = false; // Modo actual: individual o ráfaga
 
-        // Imágenes del personaje
-        this.knightImage = new Image();
-        this.knightImageLoaded = false;
-        this.knightImage.onload = () => {
-            this.knightImageLoaded = true;
-            console.log('Imagen del caballero cargada correctamente', this.knightImage.src, this.knightImage.width, this.knightImage.height);
+        // Sprite sheet unificado del personaje (1344x1344 - 7x7 frames de 192x192)
+        this.characterSprite = new Image();
+        this.characterSpriteLoaded = false;
+        this.characterSprite.onload = () => {
+            this.characterSpriteLoaded = true;
+            console.log('Sprite sheet unificado cargado correctamente', this.characterSprite.src);
         };
-        this.knightImage.onerror = () => {
-            console.error('Error cargando imagen del caballero');
+        this.characterSprite.onerror = () => {
+            console.error('Error cargando sprite sheet unificado (img/personaje_nuevo.png)');
         };
-        this.knightImage.src = 'img/Caballero prueba parado.png';
-
-        // Imagen para estado idle (parado)
-        this.knightIdleImage = new Image();
-        this.knightIdleImageLoaded = false;
-        this.knightIdleImage.onload = () => {
-            this.knightIdleImageLoaded = true;
-            console.log('Imagen del caballero parado cargada correctamente', this.knightIdleImage.src, this.knightIdleImage.width, this.knightIdleImage.height);
-        };
-        this.knightIdleImage.onerror = () => {
-            console.error('Error cargando imagen del caballero parado');
-        };
-        this.knightIdleImage.src = 'img/Caballero prueba parado.png';
-
-        // Sprite sheet para estado caminando
-        this.knightWalkImage = new Image();
-        this.knightWalkImageLoaded = false;
-        this.knightWalkImage.onload = () => {
-            this.knightWalkImageLoaded = true;
-            console.log('Sprite sheet de caminata cargado correctamente', this.knightWalkImage.src, this.knightWalkImage.width, this.knightWalkImage.height);
-
-            // Calcular dimensiones del sprite sheet - intentar diferentes configuraciones
-            const imgWidth = this.knightWalkImage.width;
-            const imgHeight = this.knightWalkImage.height;
-
-            // Intentar detectar automáticamente el número de frames
-            // Asumir que los frames son cuadrados o rectangulares similares
-            const possibleFrameCounts = [4, 6, 8, 10, 12];
-            let bestConfig = null;
-
-            for (let frames of possibleFrameCounts) {
-                const frameWidth = imgWidth / frames;
-                const frameHeight = imgHeight;
-
-                // Verificar si las dimensiones son razonables (entre 30-200px)
-                if (frameWidth >= 30 && frameWidth <= 200 && frameHeight >= 30 && frameHeight <= 200) {
-                    bestConfig = {
-                        frameWidth: Math.floor(frameWidth),
-                        frameHeight: Math.floor(frameHeight),
-                        framesPerRow: frames,
-                        totalFrames: frames,
-                        currentRow: 0
-                    };
-                    break;
-                }
-            }
-
-            if (bestConfig) {
-                this.walkSheetConfig = bestConfig;
-                console.log('Configuración sprite sheet caminata detectada:', this.walkSheetConfig);
-            } else {
-                // Fallback: asumir 6 frames
-                this.walkSheetConfig = {
-                    frameWidth: Math.floor(imgWidth / 6),
-                    frameHeight: imgHeight,
-                    framesPerRow: 6,
-                    totalFrames: 6,
-                    currentRow: 0
-                };
-                console.log('Usando configuración fallback sprite sheet:', this.walkSheetConfig);
-            }
-        };
-        this.knightWalkImage.onerror = () => {
-            console.error('Error cargando sprite sheet de caminata');
-        };
-        this.knightWalkImage.src = 'img/Caminar.png';
-
-        // Imagen para salto
-        this.knightJumpImage = new Image();
-        this.knightJumpImageLoaded = false;
-        this.knightJumpImage.onload = () => { this.knightJumpImageLoaded = true; };
-        this.knightJumpImage.onerror = () => { console.log('Salto.png no encontrado aún (opcional)'); };
-        this.knightJumpImage.src = 'img/Salto.png';
-
-        // Imagen para ataque
-        this.knightAttackImage = new Image();
-        this.knightAttackImageLoaded = false;
-        this.knightAttackImage.onload = () => { this.knightAttackImageLoaded = true; };
-        this.knightAttackImage.onerror = () => { console.log('Ataque.png no encontrado aún (opcional)'); };
-        this.knightAttackImage.src = 'img/Ataque.png';
+        this.characterSprite.src = 'img/personaje_nuevo.png';
 
         // Sistema de animación
         this.animationState = 'idle'; // idle, walking, jumping, attacking
         this.animationFrame = 0;
         this.animationTimer = 0;
-        this.animationSpeed = 100; // ms entre frames
-        this.walkAnimationSpeed = 2000; // Velocidad sumamente lenta (600ms por frame)
+        this.animationSpeed = 200; // ms entre frames general (mucho más lento)
+        this.walkAnimationSpeed = 100; // 200ms entre frames para correr
 
-        // Configuración del sprite sheet de caminata
-        this.walkSheetConfig = {
-            frameWidth: 0,  // Se calculará cuando se cargue la imagen
-            frameHeight: 0, // Se calculará cuando se cargue la imagen
-            framesPerRow: 0, // Se calculará cuando se cargue la imagen
-            totalFrames: 0,  // Se calculará cuando se cargue la imagen
-            currentRow: 0    // Fila actual del sprite sheet
+        // Configuración del sprite sheet unificado (49 frames, índices 0 a 48)
+        this.spriteConfig = {
+            frameWidth: 192,
+            frameHeight: 192,
+            framesPerRow: 7,
+            animations: {
+                idle: { start: 0, end: 3 },
+                walking: { start: 4, end: 18 },
+                jumping: { start: 19, end: 30 },
+                attacking: { start: 33, end: 48 }
+            }
         };
 
         // Duende para enemigos básicos
         this.duendeImage = new Image();
         this.duendeImageLoaded = false;
-        this.duendeImage.onload = () => {
-            this.duendeImageLoaded = true;
-            console.log('Duende cargado correctamente');
-        };
-        this.duendeImage.onerror = () => {
-            console.error('Error cargando Duende');
-        };
+        this.duendeImage.onload = () => { this.duendeImageLoaded = true; };
         this.duendeImage.src = 'img/Duende.png';
+
+        // Imagen del piso escenario
+        this.floorImage = new Image();
+        this.floorImageLoaded = false;
+        this.floorImage.onload = () => { this.floorImageLoaded = true; };
+        this.floorImage.src = 'img/piso escenario.png';
+
+        // Imagen de las plataformas sprite sheet (cuadros 0 al 5)
+        this.platformsImage = new Image();
+        this.platformsImageLoaded = false;
+        this.platformsImage.onload = () => { this.platformsImageLoaded = true; };
+        this.platformsImage.src = 'img/plataforma 1.png';
+
         this.swordImage = new Image();
         this.swordImageLoaded = false;
         this.swordImage.onload = () => {
@@ -327,7 +260,8 @@ export class StoryMode {
             y: this.config.height - 50,
             width: this.worldWidth,
             height: 50,
-            color: this.environment.groundColor
+            color: this.environment.groundColor,
+            isFloor: true
         });
 
         // Plataformas flotantes (diseño fijo para el escenario)
@@ -605,7 +539,7 @@ export class StoryMode {
         this.player.isGrounded = false;
         for (const platform of this.platforms) {
             if (this.checkCollision(this.player, platform)) {
-                if (this.player.velocityY > 0 && this.player.y < platform.y) {
+                if (this.player.velocityY >= 0 && this.player.y < platform.y) {
                     this.player.y = platform.y - this.player.height;
                     this.player.velocityY = 0;
                     this.player.isGrounded = true;
@@ -916,22 +850,25 @@ export class StoryMode {
         return obj1.x < obj2.x + obj2.width &&
             obj1.x + obj1.width > obj2.x &&
             obj1.y < obj2.y + obj2.height &&
-            obj1.y + obj1.height > obj2.y;
+            obj1.y + obj1.height >= obj2.y; // Usar >= para mantener el estado grounded estable
     }
 
     updateAnimations(deltaTime) {
         this.animationTimer += deltaTime;
 
-        let maxFrames = 1;
         let currentAnimationSpeed = this.animationSpeed;
+
+        // Guarda el estado anterior para detectar cambios de animación
+        const previousState = this.animationState;
 
         // 1. Prioridad: Ataque
         if (this.animationState === 'attacking') {
             const timeSinceAttack = Date.now() - (this.attackAnimationTimer || 0);
-            if (timeSinceAttack > 250) { // Duración del estado de ataque (ms)
+            // El ataque tiene 16 frames, durará aprox 16 * 80 = 1280ms
+            if (timeSinceAttack > 1280) {
                 this.animationState = 'idle';
             } else {
-                maxFrames = 1; // Ajustable si el ataque se vuelve un sprite sheet
+                currentAnimationSpeed = 80; // Ataque más lento
             }
         }
 
@@ -939,29 +876,33 @@ export class StoryMode {
         if (this.animationState !== 'attacking') {
             if (!this.player.isGrounded) {
                 this.animationState = 'jumping';
-                maxFrames = 1;
+                currentAnimationSpeed = 250; // Salto mucho más lento
             } else {
                 // 3. Prioridad: Caminar o Reposo
                 if (Math.abs(this.player.velocityX) > 0.5) {
                     this.animationState = 'walking';
-                    maxFrames = this.walkSheetConfig.totalFrames || 6;
-                    currentAnimationSpeed = this.walkAnimationSpeed;
+                    currentAnimationSpeed = this.walkAnimationSpeed; // Usa los 200ms
                 } else {
                     this.animationState = 'idle';
-                    maxFrames = 1;
+                    currentAnimationSpeed = 400; // Reposo muy relajado (400ms por frame)
                 }
             }
         }
 
-        // Actualizar frame
-        if (maxFrames > 1) {
-            if (this.animationTimer >= currentAnimationSpeed) {
-                this.animationTimer = 0;
-                this.animationFrame = (this.animationFrame + 1) % maxFrames;
-            }
-        } else {
+        // Si el estado de animación cambió, reiniciar el frame al inicio de la animación
+        if (previousState !== this.animationState) {
             this.animationFrame = 0;
             this.animationTimer = 0;
+        }
+
+        // Obtener la configuración de la animación actual
+        const animConfig = this.spriteConfig.animations[this.animationState] || this.spriteConfig.animations.idle;
+        const maxFrames = (animConfig.end - animConfig.start) + 1;
+
+        // Actualizar frame
+        if (this.animationTimer >= currentAnimationSpeed) {
+            this.animationTimer = 0;
+            this.animationFrame = (this.animationFrame + 1) % maxFrames;
         }
     }
 
@@ -985,9 +926,11 @@ export class StoryMode {
             this.ctx.fillStyle = environment.skyColor;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-            // Dimensiones del GIF
-            const gifWidth = this.castleGif.width;
-            const gifHeight = this.castleGif.height;
+            // Escalar el GIF para que cubra todo el alto de la pantalla, evitando el hueco azul arriba
+            const gifHeight = this.canvas.height;
+            const bgScale = gifHeight / this.castleGif.height;
+            const gifWidth = this.castleGif.width * bgScale;
+            const gifY = 0; // Pegado al techo
 
             // Dibujar múltiples capas de paralaje para mayor profundidad
             for (const layer of this.parallaxLayers) {
@@ -999,7 +942,6 @@ export class StoryMode {
                 // Dibujar múltiples copias para crear efecto infinito
                 for (let i = 0; i < repetitions; i++) {
                     const gifX = (i * gifWidth) - (cameraOffset % gifWidth);
-                    const gifY = (this.canvas.height - gifHeight) / 2;
                     this.ctx.drawImage(this.castleGif, gifX, gifY, gifWidth, gifHeight);
                 }
             }
@@ -1026,9 +968,54 @@ export class StoryMode {
         this.renderDecorations();
 
         // Dibujar plataformas
+        // Dibujar plataformas
         for (const platform of this.platforms) {
-            this.ctx.fillStyle = platform.color;
-            this.ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+            if (platform.isFloor && this.floorImageLoaded && this.floorImage.complete) {
+                this.ctx.save();
+                const imgWidth = this.floorImage.width || 1;
+                const imgHeight = this.floorImage.height || 1;
+
+                // Si la imagen tiene mucha transparencia y se dibuja bajito, vamos a definir 
+                // una altura específica forzada y alinear la parte *inferior* de la textura con el borde inferior 
+                // de la pantalla para asegurarnos de que quede visible dentro del canvas.
+                const drawHeight = 200; // Puedes ajustar qué tan alto quieres que se vea el pasto/tierra visualmente
+                // Proporción correcta para que no se deforme
+                const scaleX = drawHeight / imgHeight;
+                const drawWidth = imgWidth * scaleX;
+
+                // Alineamos el borde INFERIOR de la imagen con el borde INFERIOR del canvas
+                // Así nos aseguramos de que no se está dibujando por debajo de la pantalla invisible
+                const drawY = this.canvas.height - drawHeight;
+
+                for (let i = platform.x; i < platform.x + platform.width; i += drawWidth) {
+                    this.ctx.drawImage(this.floorImage, i, drawY, drawWidth, drawHeight);
+                }
+
+                // Dibujamos la cajita de colisión base invisible (para debug) transparente
+                // o no la dibujamos para que sólo se vea el piso lindo
+                // this.ctx.fillStyle = 'rgba(139, 69, 19, 0)'; 
+                // this.ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+
+                this.ctx.restore();
+            } else if (!platform.isFloor && this.platformsImageLoaded && this.platformsImage.complete) {
+                // Dibujar plataforma flotante con la imagen única
+
+                // Mantener la proporción original del pixel art para que no se vea aplastado
+                const drawHeight = platform.width * (this.platformsImage.height / this.platformsImage.width);
+
+                // Offset vertical para que la colisión invisible (pies) encaje mejor con el dibujo
+                // Ajusta este numerito si aún ves que flota (mayor = imagen más arriba)
+                const offsetY = 17;
+
+                this.ctx.drawImage(
+                    this.platformsImage,
+                    platform.x, platform.y - offsetY, platform.width, drawHeight
+                );
+            } else {
+                // Fallback a color sólido si la imagen no ha cargado o es otra plataforma de tipo desconocido
+                this.ctx.fillStyle = platform.color;
+                this.ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+            }
         }
 
         // Dibujar gemas
@@ -1114,91 +1101,58 @@ export class StoryMode {
             }
         }
 
-        // Selección de imagen basada en el estado de animación
-        let currentImage = this.knightImage;
-        let imageLoaded = this.knightImageLoaded;
-        let useSpriteSheet = false;
-
-        if (this.animationState === 'attacking' && this.knightAttackImageLoaded) {
-            currentImage = this.knightAttackImage;
-            imageLoaded = this.knightAttackImageLoaded;
-            useSpriteSheet = false; // Cambiar a true si el ataque es un sprite sheet
-        } else if (this.animationState === 'jumping' && this.knightJumpImageLoaded) {
-            currentImage = this.knightJumpImage;
-            imageLoaded = this.knightJumpImageLoaded;
-            useSpriteSheet = false;
-        } else if (this.animationState === 'walking' && this.knightWalkImageLoaded) {
-            currentImage = this.knightWalkImage;
-            imageLoaded = this.knightWalkImageLoaded;
-            useSpriteSheet = true;
-        } else if (this.animationState === 'idle' && this.knightIdleImageLoaded) {
-            currentImage = this.knightIdleImage;
-            imageLoaded = this.knightIdleImageLoaded;
-            useSpriteSheet = false;
-        }
-
-        // Fallback robusto por si alguna imagen no existe aún (Salto.png o Ataque.png)
-        if (!imageLoaded) {
-            currentImage = this.knightIdleImage;
-            imageLoaded = this.knightIdleImageLoaded;
-            useSpriteSheet = false;
-        }
-
-        if (imageLoaded && currentImage) {
+        if (this.characterSpriteLoaded && this.characterSprite.complete) {
             this.ctx.save();
+
+            const playerCenterX = this.player.x + this.player.width / 2;
 
             // Voltear si mira a la izquierda
             if (this.player.facing < 0) {
-                this.ctx.translate(this.player.x, this.player.y);
+                this.ctx.translate(playerCenterX, this.player.y);
                 this.ctx.scale(-1, 1);
-                this.ctx.translate(-this.player.x, -this.player.y);
+                this.ctx.translate(-playerCenterX, -this.player.y);
             }
 
-            if (useSpriteSheet && this.animationState === 'walking') {
-                // SPRITE SHEET DE CAMINAR - simplificado y directo
-                const frameWidth = this.walkSheetConfig.frameWidth;
-                const frameHeight = this.walkSheetConfig.frameHeight;
-                const frameX = this.animationFrame * frameWidth;
-                const frameY = 0; // Siempre primera fila
+            const frameWidth = this.spriteConfig.frameWidth;
+            const frameHeight = this.spriteConfig.frameHeight;
 
-                if (frameWidth > 0 && frameHeight > 0) {
-                    const scale = 1.2;
-                    const scaledWidth = frameWidth * scale;
-                    const scaledHeight = frameHeight * scale;
+            // Obtener el frame absoluto basado en el estado
+            const animConfig = this.spriteConfig.animations[this.animationState] || this.spriteConfig.animations.idle;
+            // Asegurarse de no exceder los frames disponibles para la animación actual
+            const currentLocalFrame = this.animationFrame % ((animConfig.end - animConfig.start) + 1);
+            const absoluteFrameIndex = animConfig.start + currentLocalFrame;
 
-                    this.ctx.drawImage(
-                        currentImage,                    // Sprite sheet completo
-                        frameX, frameY, frameWidth, frameHeight,  // Frame específico
-                        this.player.x - scaledWidth / 2,
-                        this.player.y - scaledHeight / 2,
-                        scaledWidth, scaledHeight
-                    );
-                }
-            } else {
-                // IMAGEN ESTÁTICA (idle o fallback)
-                const spriteWidth = currentImage.width;
-                const spriteHeight = currentImage.height;
-                const scale = 1.2;
-                const scaledWidth = spriteWidth * scale;
-                const scaledHeight = spriteHeight * scale;
+            // Calcular X e Y en la cuadrícula del spritesheet original (7 columnas)
+            const frameCol = absoluteFrameIndex % this.spriteConfig.framesPerRow;
+            const frameRow = Math.floor(absoluteFrameIndex / this.spriteConfig.framesPerRow);
 
-                this.ctx.drawImage(
-                    currentImage,
-                    this.player.x - scaledWidth / 2,
-                    this.player.y - scaledHeight / 2,
-                    scaledWidth,
-                    scaledHeight
-                );
-            }
+            const frameX = frameCol * frameWidth;
+            const frameY = frameRow * frameHeight;
+
+            // Escala para ajustar el tamaño del personaje (192px sprite adaptado al collider 40x60)
+            const scale = 0.8;
+            const scaledWidth = frameWidth * scale;
+            const scaledHeight = frameHeight * scale;
+
+            // Offset para centrar el sprite en el collider
+            const offsetX = playerCenterX - (scaledWidth / 2);
+            // El collider tiene 60 de alto, el sprite es más grande, alineamos a nivel inferior
+            const offsetY = (this.player.y + this.player.height) - scaledHeight + 15;
+
+            this.ctx.drawImage(
+                this.characterSprite,
+                frameX, frameY, frameWidth, frameHeight,
+                offsetX,
+                offsetY,
+                scaledWidth, scaledHeight
+            );
 
             this.ctx.restore();
         }
         else {
             // Fallback - dibujar rectángulo simple si no hay imagen
-            const fallbackWidth = 60;
-            const fallbackHeight = 80;
             this.ctx.fillStyle = 'red';
-            this.ctx.fillRect(this.player.x - fallbackWidth / 2, this.player.y - fallbackHeight / 2, fallbackWidth, fallbackHeight);
+            this.ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height);
         }
 
         // Dibujar partículas
@@ -1245,92 +1199,125 @@ export class StoryMode {
             }
         }
 
-        // HUD con estilo pixelado - corazones y barra de vida
+        // HUD con estilo pixelado - barra de vida
         if (!this.gameOver) {
-            // Calcular vidas y salud
-            const maxLives = 5;
-            const currentLives = Math.max(0, Math.floor(this.player.health / 20));
-            const healthPercentage = Math.max(0, Math.min(1, this.player.health / 100));
+            // Inicializar si no existe
+            if (this.player.displayHealth === undefined) {
+                this.player.displayHealth = this.player.health;
+            }
 
-            // Dibujar 5 corazones con diferentes estados
-            for (let i = 0; i < maxLives; i++) {
-                const x = 20 + (i * 40);
-                const y = 25; // Subido más arriba
-
-                if (i < currentLives) {
-                    // Corazón lleno (rojo)
-                    this.ctx.fillStyle = '#FF0000';
-                    this.drawPixelHeart(x, y, 18);
-                } else {
-                    // Corazón vacío (gris oscuro)
-                    this.ctx.fillStyle = '#444444';
-                    this.drawPixelHeart(x, y, 18);
+            // Animar (lerp rústico) hacia la vida real
+            if (this.player.displayHealth > this.player.health) {
+                this.player.displayHealth -= 0.5; // Velocidad de bajada
+                if (this.player.displayHealth < this.player.health) {
+                    this.player.displayHealth = this.player.health;
+                }
+            } else if (this.player.displayHealth < this.player.health) {
+                this.player.displayHealth += 0.5; // Velocidad de subida
+                if (this.player.displayHealth > this.player.health) {
+                    this.player.displayHealth = this.player.health;
                 }
             }
 
-            // Dibujar barra de vida actual
+            const healthPercentage = Math.max(0, Math.min(1, this.player.displayHealth / 100));
+
             const barX = 20;
-            const barY = 55; // Subido más arriba
-            const barWidth = 200;
-            const barHeight = 16;
-            const segmentWidth = Math.floor(barWidth / 4);
+            const barY = 20;
+            const width = 250;
+            const height = 24;
 
-            // Fondo de la barra
-            this.ctx.fillStyle = '#222222';
-            this.ctx.fillRect(barX, barY, barWidth, barHeight);
+            this.ctx.save();
 
-            // Segmentos de vida
-            const filledSegments = Math.floor(healthPercentage * 4);
-            for (let i = 0; i < 4; i++) {
-                if (i < filledSegments) {
-                    // Segmento lleno (rojo)
-                    this.ctx.fillStyle = '#FF0000';
-                } else {
-                    // Segmento vacío (gris oscuro)
-                    this.ctx.fillStyle = '#444444';
-                }
-                this.ctx.fillRect(barX + (i * segmentWidth), barY, segmentWidth - 1, barHeight);
+            // 1. Borde exterior (madera oscura/hierro forjado)
+            this.ctx.fillStyle = '#1a1105';
+            this.ctx.fillRect(barX, barY, width, height);
+
+            // 2. Borde decorativo en la capa interna (oro viejo/bronce desgastado)
+            const gradientBorde = this.ctx.createLinearGradient(barX, barY, barX, barY + height);
+            gradientBorde.addColorStop(0, '#DAA520');
+            gradientBorde.addColorStop(0.5, '#B8860B');
+            gradientBorde.addColorStop(1, '#8B6508');
+            this.ctx.fillStyle = gradientBorde;
+            this.ctx.fillRect(barX + 2, barY + 2, width - 4, height - 4);
+
+            // Sombras para añadir separación entre chapas metálicas
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            for (let i = 25; i < width - 10; i += 40) {
+                this.ctx.fillRect(barX + i, barY + 2, 2, height - 4);
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                this.ctx.fillRect(barX + i - 1, barY + 2, 1, height - 4);
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
             }
+
+            // 3. Fondo vacío de la barra (Rojo oscuro, casi negro, para simular cuenco profundo)
+            this.ctx.fillStyle = '#2a0505';
+            this.ctx.fillRect(barX + 4, barY + 4, width - 8, height - 8);
+
+            // 4. Relleno de vida principal animado (usando interpolación de displayHealth)
+            const healthFillWidth = Math.max(0, (width - 8) * healthPercentage);
+            if (healthFillWidth > 0) {
+                const gradientVida = this.ctx.createLinearGradient(0, barY + 4, 0, barY + height - 4);
+                gradientVida.addColorStop(0, '#ff4d4d');   // Brillo superior de la poción/sangre
+                gradientVida.addColorStop(0.3, '#cc0000'); // Central
+                gradientVida.addColorStop(0.8, '#8b0000'); // Oscuro al fondo
+                gradientVida.addColorStop(1, '#4a0000');   // Sombra abajo
+                this.ctx.fillStyle = gradientVida;
+                this.ctx.fillRect(barX + 4, barY + 4, healthFillWidth, height - 8);
+
+                // Efecto de reflejo de cristal/brillo superior en el líquido
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                this.ctx.fillRect(barX + 4, barY + 4, healthFillWidth, (height - 8) / 3);
+            }
+
+            // 5. Detalles medievales - Remaches (Rivets) de plomo en las esquinas de bronce
+            this.ctx.fillStyle = '#444';
+            // Puntos grises oscuros
+            this.ctx.fillRect(barX + 4, barY + 5, 2, 2);
+            this.ctx.fillRect(barX + 4, barY + height - 7, 2, 2);
+            this.ctx.fillRect(barX + width - 6, barY + 5, 2, 2);
+            this.ctx.fillRect(barX + width - 6, barY + height - 7, 2, 2);
+            // Brillo del remache
+            this.ctx.fillStyle = '#888';
+            this.ctx.fillRect(barX + 4, barY + 5, 1, 1);
+            this.ctx.fillRect(barX + 4, barY + height - 7, 1, 1);
+            this.ctx.fillRect(barX + width - 6, barY + 5, 1, 1);
+            this.ctx.fillRect(barX + width - 6, barY + height - 7, 1, 1);
+
+            // 6. Texto descriptivo arriba de la barra para darle más inmersión RPG
+            this.ctx.fillStyle = '#FFD700'; // Letra dorada clara
+            this.ctx.font = 'bold 12px Georgia, serif';
+            this.ctx.textAlign = 'left';
+            this.ctx.textBaseline = 'bottom';
+            // Sombra del texto
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            this.ctx.fillText("HP", barX + 2, barY - 2 + 1);
+            this.ctx.fillStyle = '#FFE5C2';
+            this.ctx.fillText("HP", barX + 1, barY - 2);
+
+            // Valor numérico de salud dentro de la barra
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; // Sombra
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(`${Math.ceil(this.player.health)} / ${this.player.maxHealth}`, barX + width / 2 + 1, barY + height / 2 + 2);
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.fillText(`${Math.ceil(this.player.health)} / ${this.player.maxHealth}`, barX + width / 2, barY + height / 2 + 1);
+
+            this.ctx.restore();
 
             // DEBUG MSG ANIMACIONES
             this.ctx.fillStyle = '#00FF00';
             this.ctx.font = '16px monospace';
             this.ctx.textAlign = 'left';
             this.ctx.fillText(`CámaraX: ${Math.floor(this.camera.x)}`, 20, 95);
-            this.ctx.fillText(`Animación: ${this.animationState} | Frame: ${this.animationFrame}/${this.walkSheetConfig.totalFrames} | Timer: ${Math.floor(this.animationTimer)}/${this.walkAnimationSpeed}`, 20, 115);
-        }
-    }
-
-    // Función para dibujar corazón pixelado
-    drawPixelHeart(x, y, size) {
-        // Matriz de píxeles para un corazón pixelado (8x11)
-        const heartPixels = [
-            [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
-            [0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0],
-            [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
-            [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        ];
-
-        const pixelSize = size / 8; // 8 filas para mejor proporción
-
-        for (let heartRow = 0; heartRow < 8; heartRow++) {
-            const currentRow = heartPixels[heartRow];
-            if (!currentRow) continue; // Verificación de seguridad
-            for (let heartCol = 0; heartCol < 11; heartCol++) {
-                if (currentRow[heartCol] === 1) {
-                    this.ctx.fillRect(
-                        x + (heartCol * pixelSize),
-                        y + (heartRow * pixelSize),
-                        pixelSize,
-                        pixelSize
-                    );
-                }
+            let totalLocalFrames = 0;
+            if (this.spriteConfig && this.spriteConfig.animations[this.animationState]) {
+                const cfg = this.spriteConfig.animations[this.animationState];
+                totalLocalFrames = (cfg.end - cfg.start) + 1;
             }
+            this.ctx.fillText(`Animación: ${this.animationState} | Frame: ${this.animationFrame}/${totalLocalFrames} | Timer: ${Math.floor(this.animationTimer)}/spd`, 20, 115);
         }
     }
+
 
     gameLoop() {
         const loop = () => {
@@ -1455,6 +1442,7 @@ export class StoryMode {
         this.gameOver = false;
         this.score = 0;
         this.player.health = this.player.maxHealth;
+        this.player.displayHealth = this.player.maxHealth;
         this.player.x = 200;
         this.player.y = this.config.height - 200;
         this.player.velocityX = 0;
