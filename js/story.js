@@ -9,8 +9,7 @@ export class StoryMode {
             height: window.innerHeight,
             playerSpeed: 5,
             jumpPower: 12,
-            gravity: 0.5,
-            groundLevel: 100
+            gravity: 0.5
         };
 
         // Canvas 2D
@@ -70,10 +69,7 @@ export class StoryMode {
         this.gameOver = false;
         this.paused = false;
         this.keys = {};
-        // this.currentLevel = 1; // Eliminado - solo un escenario
-        // this.maxLevel = 5; // Eliminado - solo un escenario
         this.score = 0;
-        this.storyProgress = 0;
 
         // Botones de game over
         this.gameOverButtons = {
@@ -102,17 +98,13 @@ export class StoryMode {
             width: this.config.width,
             height: this.config.height
         };
-        this.worldWidth = 10000; // Mundo mucho más largo para más recorrido
-        this.autoScroll = false; // Scroll manual controlado por el jugador
+        this.worldWidth = 10000;
 
-        // Entorno del juego (solo un escenario)
+        // Entorno del juego
         this.environment = {
-            name: "Reino Pacífico",
-            skyColor: '#87CEEB', // Azul cielo claro
-            groundColor: '#8B4513', // Tierra marrón
-            platformColor: '#654321', // Madera oscura
-            decorationColor: '#228B22', // Verde bosque
-            timeOfDay: 'amanecer'
+            skyColor: '#87CEEB',
+            groundColor: '#8B4513',
+            platformColor: '#654321'
         };
 
         // Jugador
@@ -132,14 +124,15 @@ export class StoryMode {
             isGrounded: false,
             facing: 1,
             enemiesDefeated: 0,
-            survivalTime: 0
+            survivalTime: 0,
+            lastDamageTime: 0,           // Tiempo del último daño recibido
+            invincibilityDuration: 1000  // 1 segundo de invencibilidad tras recibir daño
         };
 
         // Plataformas (escenario fijo)
         this.platforms = this.generatePlatforms();
 
-        // Elementos decorativos del escenario
-        this.decorations = this.generateDecorations();
+
 
         // Enemigos
         this.enemies = [];
@@ -230,8 +223,13 @@ export class StoryMode {
         };
         this.swordImage.src = 'img/Espada de Fe.png';
 
-        // Jefe (para nivel 4)
-        this.boss = null;
+        // Imagen del token
+        this.tokenImage = new Image();
+        this.tokenImageLoaded = false;
+        this.tokenImage.onload = () => { this.tokenImageLoaded = true; };
+        this.tokenImage.src = 'img/token.png';
+
+
 
         // Estado del nivel
         this.levelStartTime = Date.now();
@@ -264,28 +262,37 @@ export class StoryMode {
             isFloor: true
         });
 
-        // Plataformas flotantes (diseño fijo para el escenario)
+        // Plataformas flotantes — posiciones Y relativas al suelo para adaptarse a cualquier resolución
+        // Salto máximo ~144px, así que las plataformas están en 3 niveles alcanzables:
+        //   Nivel 1: 100-130px sobre el suelo (alcanzable desde el suelo)
+        //   Nivel 2: 200-240px sobre el suelo (alcanzable desde nivel 1)
+        //   Nivel 3: 300-340px sobre el suelo (alcanzable desde nivel 2)
+        const groundY = this.config.height - 50;
+
         const floatingPlatforms = [
-            { x: 400, y: 450, width: 120, height: 20 },
-            { x: 600, y: 380, width: 100, height: 20 },
-            { x: 800, y: 320, width: 140, height: 20 },
-            { x: 1050, y: 400, width: 110, height: 20 },
-            { x: 1300, y: 280, width: 130, height: 20 },
-            { x: 1550, y: 350, width: 120, height: 20 },
-            { x: 1800, y: 300, width: 100, height: 20 },
-            { x: 2100, y: 420, width: 150, height: 20 },
-            { x: 2400, y: 250, width: 120, height: 20 },
-            { x: 2700, y: 380, width: 140, height: 20 },
-            { x: 3000, y: 320, width: 110, height: 20 },
-            { x: 3300, y: 400, width: 130, height: 20 },
-            { x: 3600, y: 280, width: 120, height: 20 },
-            { x: 3900, y: 350, width: 100, height: 20 },
-            { x: 4200, y: 300, width: 140, height: 20 },
-            { x: 4500, y: 420, width: 120, height: 20 },
-            { x: 4800, y: 250, width: 110, height: 20 },
-            { x: 5100, y: 380, width: 130, height: 20 },
-            { x: 5400, y: 320, width: 120, height: 20 },
-            { x: 5700, y: 400, width: 100, height: 20 }
+            // Nivel 1 — alcanzable desde el suelo
+            { x: 400, y: groundY - 120, width: 120, height: 20 },
+            { x: 1050, y: groundY - 100, width: 110, height: 20 },
+            { x: 2100, y: groundY - 110, width: 150, height: 20 },
+            { x: 2700, y: groundY - 120, width: 140, height: 20 },
+            { x: 3300, y: groundY - 100, width: 130, height: 20 },
+            { x: 4500, y: groundY - 110, width: 120, height: 20 },
+            { x: 5100, y: groundY - 120, width: 130, height: 20 },
+            { x: 5700, y: groundY - 100, width: 100, height: 20 },
+            // Nivel 2 — alcanzable desde nivel 1
+            { x: 600, y: groundY - 220, width: 100, height: 20 },
+            { x: 1550, y: groundY - 210, width: 120, height: 20 },
+            { x: 2400, y: groundY - 230, width: 120, height: 20 },
+            { x: 3000, y: groundY - 220, width: 110, height: 20 },
+            { x: 3900, y: groundY - 210, width: 100, height: 20 },
+            { x: 4800, y: groundY - 230, width: 110, height: 20 },
+            { x: 5400, y: groundY - 220, width: 120, height: 20 },
+            // Nivel 3 — alcanzable desde nivel 2
+            { x: 800, y: groundY - 330, width: 140, height: 20 },
+            { x: 1300, y: groundY - 320, width: 130, height: 20 },
+            { x: 1800, y: groundY - 310, width: 100, height: 20 },
+            { x: 3600, y: groundY - 330, width: 120, height: 20 },
+            { x: 4200, y: groundY - 320, width: 140, height: 20 }
         ];
 
         floatingPlatforms.forEach(platform => {
@@ -298,102 +305,15 @@ export class StoryMode {
         return platforms;
     }
 
-    // Generar elementos decorativos del escenario (distribuidos por todo el mundo)
-    generateDecorations() {
-        const decorations = [];
-        const decorationCount = 40; // Cantidad fija para el escenario
 
-        // Generar árboles (decoración principal del Reino Pacífico)
-        for (let i = 0; i < decorationCount; i++) {
-            const x = Math.random() * this.worldWidth;
-            const y = this.config.height - 150 + Math.random() * 80; // Árboles en el suelo
-
-            decorations.push({
-                x: x,
-                y: y,
-                type: 'tree',
-                width: 35,
-                height: 60
-            });
-        }
-
-        return decorations;
-    }
-
-    // Renderizar elementos decorativos
-    renderDecorations() {
-        for (const decoration of this.decorations) {
-            this.ctx.fillStyle = decoration.color;
-
-            switch (decoration.type) {
-                case 'tree':
-                    // Tronco
-                    this.ctx.fillRect(decoration.x + 10, decoration.y + 20, 10, 30);
-                    // Hojas
-                    this.ctx.beginPath();
-                    this.ctx.arc(decoration.x + 15, decoration.y + 15, 15, 0, Math.PI * 2);
-                    this.ctx.fill();
-                    break;
-
-                case 'dead_tree':
-                    // Tronco retorcido
-                    this.ctx.fillRect(decoration.x + 8, decoration.y + 30, 8, 40);
-                    // Ramas secas
-                    this.ctx.fillRect(decoration.x + 5, decoration.y + 20, 20, 3);
-                    this.ctx.fillRect(decoration.x, decoration.y + 15, 25, 3);
-                    break;
-
-                case 'torch':
-                    // Poste
-                    this.ctx.fillRect(decoration.x + 6, decoration.y + 10, 3, 20);
-                    // Fuego (efecto animado simple)
-                    const flameHeight = 10 + Math.sin(Date.now() / 200) * 3;
-                    this.ctx.fillStyle = '#FF6600';
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(decoration.x + 7.5, decoration.y + 10);
-                    this.ctx.lineTo(decoration.x + 2, decoration.y - flameHeight);
-                    this.ctx.lineTo(decoration.x + 13, decoration.y - flameHeight);
-                    this.ctx.closePath();
-                    this.ctx.fill();
-                    this.ctx.fillStyle = decoration.color;
-                    break;
-
-                case 'crystal':
-                    // Cristal brillante
-                    this.ctx.save();
-                    this.ctx.translate(decoration.x + decoration.width / 2, decoration.y + decoration.height / 2);
-                    this.ctx.rotate(Math.PI / 4);
-                    this.ctx.fillRect(-decoration.width / 2, -decoration.height / 2, decoration.width, decoration.height);
-                    this.ctx.restore();
-                    // Brillo
-                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-                    this.ctx.fillRect(decoration.x + 2, decoration.y + 2, 4, 4);
-                    this.ctx.fillStyle = decoration.color;
-                    break;
-
-                case 'statue':
-                    // Base
-                    this.ctx.fillRect(decoration.x + 5, decoration.y + 25, 25, 15);
-                    // Cuerpo
-                    this.ctx.fillRect(decoration.x + 10, decoration.y + 10, 15, 20);
-                    // Cabeza
-                    this.ctx.beginPath();
-                    this.ctx.arc(decoration.x + 17.5, decoration.y + 8, 6, 0, Math.PI * 2);
-                    this.ctx.fill();
-                    break;
-            }
-        }
-    }
 
     setupControls() {
         window.addEventListener('keydown', (e) => {
             this.keys[e.code] = true;
-            console.log('Keydown:', e.code, 'Keys actuales:', this.keys);
         });
 
         window.addEventListener('keyup', (e) => {
             this.keys[e.code] = false;
-            console.log('Keyup:', e.code, 'Keys actuales:', this.keys);
         });
     }
 
@@ -402,23 +322,14 @@ export class StoryMode {
 
         // Manejar pausa/reanudar (siempre verificar, incluso en pausa)
         if (this.keys['KeyP'] || this.keys['Escape']) {
-            console.log('Tecla de pausa detectada:', {
-                KeyP: this.keys['KeyP'],
-                Escape: this.keys['Escape'],
-                paused: this.paused
-            });
             this.paused = !this.paused;
-            console.log('Estado de pausa cambiado a:', this.paused);
-            // Limpiar las teclas de pausa para evitar múltiples toggles
             this.keys['KeyP'] = false;
             this.keys['Escape'] = false;
-            console.log('Teclas limpiadas');
             return;
         }
 
         // Si está en pausa, no permitir otros controles
         if (this.paused) {
-            console.log('Juego en pausa, ignorando otros controles');
             return;
         }
 
@@ -449,7 +360,6 @@ export class StoryMode {
         // Cambiar modo de disparo
         if (this.keys['KeyG']) {
             this.isBurstMode = !this.isBurstMode;
-            console.log('Modo de disparo:', this.isBurstMode ? 'Ráfaga' : 'Individual');
             this.keys['KeyG'] = false;
         }
     }
@@ -508,14 +418,18 @@ export class StoryMode {
         this.projectiles.push(projectile);
     }
 
-    updatePhysics() {
+    updatePhysics(deltaTime) {
+        // Factor de tiempo normalizado a 60fps (16.67ms por frame)
+        // Se limita a 50ms para evitar saltos de física en picos de lag
+        const dt = Math.min(deltaTime, 50) / 16.67;
+
         // Actualizar jugador
         if (!this.player.isGrounded) {
-            this.player.velocityY += this.config.gravity;
+            this.player.velocityY += this.config.gravity * dt;
         }
 
-        this.player.x += this.player.velocityX;
-        this.player.y += this.player.velocityY;
+        this.player.x += this.player.velocityX * dt;
+        this.player.y += this.player.velocityY * dt;
 
         // Límites del mundo
         if (this.player.x < 0) this.player.x = 0;
@@ -550,8 +464,8 @@ export class StoryMode {
 
         // Actualizar proyectiles
         this.projectiles = this.projectiles.filter(projectile => {
-            projectile.x += projectile.velocityX;
-            projectile.y += projectile.velocityY;
+            projectile.x += projectile.velocityX * dt;
+            projectile.y += projectile.velocityY * dt;
 
             // Eliminar proyectiles que salgan del mundo (no solo de la pantalla visible)
             if (projectile.x < this.camera.x - 100 || projectile.x > this.camera.x + this.config.width + 100) {
@@ -570,29 +484,19 @@ export class StoryMode {
                 }
             }
 
-            // Colisión con jefe
-            if (this.boss && this.checkCollision(projectile, this.boss)) {
-                this.boss.health -= 10;
-                this.createParticles(this.boss.x + this.boss.width / 2, this.boss.y + this.boss.height / 2, '#FF0000');
-                if (this.boss.health <= 0) {
-                    this.boss = null;
-                    this.score += 1000;
-                    // Eliminada la llamada a completeLevel() para continuar jugando
-                }
-                return false;
-            }
+
 
             return true;
         });
 
         // Actualizar enemigos
-        this.updateEnemies();
+        this.updateEnemies(dt);
 
         // Actualizar gemas
-        this.updateGems();
+        this.updateGems(deltaTime);
 
         // Actualizar partículas
-        this.updateParticles();
+        this.updateParticles(dt);
 
         // Actualizar tiempo de supervivencia
         this.player.survivalTime = Math.floor((Date.now() - this.levelStartTime) / 1000);
@@ -603,20 +507,15 @@ export class StoryMode {
         }
     }
 
-    updateEnemies() {
-        // Spawn de enemigos
-        this.enemySpawnTimer += 16;
+    updateEnemies(dt) {
+        // Spawn de enemigos (usa deltaTime real via dt)
+        this.enemySpawnTimer += 16.67 * dt;
         if (this.enemySpawnTimer >= this.enemySpawnInterval && this.enemies.length < this.maxEnemies) {
             this.spawnEnemy();
             this.enemySpawnTimer = 0;
         }
 
-        // Spawn de jefe (tras 10 enemigos derrotados) - Desactivado temporalmente
-        /*
-        if (!this.boss && this.player.enemiesDefeated >= 10) {
-            this.spawnBoss();
-        }
-        */
+
 
         // Limpiar memoria: despawnear enemigos que se han quedado muy atrás de la cámara
         this.enemies = this.enemies.filter(enemy => enemy.x >= this.camera.x - 800);
@@ -624,7 +523,7 @@ export class StoryMode {
         // Actualizar posición y física de enemigos
         for (const enemy of this.enemies) {
             // Aplicar gravedad siempre
-            enemy.velocityY += this.config.gravity;
+            enemy.velocityY += this.config.gravity * dt;
 
             // Limitar velocidad de caída máxima
             if (enemy.velocityY > 15) {
@@ -637,39 +536,41 @@ export class StoryMode {
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance > 0) {
-                const moveX = (dx / distance) * 1.5; // Movimiento horizontal
+                const moveX = (dx / distance) * 1.5 * dt;
                 enemy.x += moveX;
 
                 // Detectar si hay una plataforma adelante y saltar si es necesario
-                const nextX = enemy.x + moveX * 10; // Predecir posición futura
+                const nextX = enemy.x + moveX * 10;
                 const needsJump = this.shouldEnemyJump(enemy, nextX);
 
                 // Solo saltar si está en el suelo y realmente necesita saltar
-                if (needsJump && enemy.isGrounded && Math.random() > 0.3) { // 70% de probabilidad de saltar
-                    enemy.velocityY = -this.config.jumpPower * 0.8; // Salto del enemigo
+                if (needsJump && enemy.isGrounded && Math.random() > 0.3) {
+                    enemy.velocityY = -this.config.jumpPower * 0.8;
                     enemy.isJumping = true;
                     enemy.isGrounded = false;
-                    console.log('Enemigo salta desde:', enemy.x, enemy.y);
                 }
             }
 
             // Actualizar posición vertical
-            enemy.y += enemy.velocityY;
+            enemy.y += enemy.velocityY * dt;
 
             // Resetear estado de grounded
             enemy.isGrounded = false;
 
             // Verificar colisión con plataformas (excepto el suelo principal)
+            // Usamos el centro del enemigo para que caiga si pasa del borde visual
+            const enemyCenterX = enemy.x + enemy.width / 2;
             for (const platform of this.platforms) {
                 if (platform.y < this.config.height - 60) { // Ignorar suelo principal aquí
-                    if (this.checkCollision(enemy, platform)) {
+                    // Solo aterrizar si el centro del enemigo está sobre la plataforma
+                    const centerOverPlatform = enemyCenterX > platform.x && enemyCenterX < platform.x + platform.width;
+                    if (centerOverPlatform && this.checkCollision(enemy, platform)) {
                         if (enemy.velocityY > 0 && enemy.y < platform.y) {
                             enemy.y = platform.y - enemy.height;
                             enemy.velocityY = 0;
                             enemy.isGrounded = true;
                             enemy.isJumping = false;
-                            console.log('Enemigo aterrizó en plataforma:', enemy.x, enemy.y);
-                            break; // Salir del loop una vez que encuentra una plataforma
+                            break;
                         }
                     }
                 }
@@ -677,20 +578,20 @@ export class StoryMode {
 
             // Siempre verificar colisión con el suelo principal como respaldo FINAL
             if (enemy.y + enemy.height >= this.config.height - 50) {
-                const wasFloating = enemy.y + enemy.height > this.config.height - 45;
                 enemy.y = this.config.height - 50 - enemy.height;
                 enemy.velocityY = 0;
                 enemy.isGrounded = true;
                 enemy.isJumping = false;
-                if (wasFloating) {
-                    console.log('Enemigo corregido al suelo:', enemy.x, enemy.y);
-                }
             }
 
-            // Colisión con jugador
+            // Colisión con jugador (con i-frames para evitar daño continuo)
             if (this.checkCollision(enemy, this.player)) {
-                this.player.health -= 1;
-                this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
+                const now = Date.now();
+                if (now - this.player.lastDamageTime > this.player.invincibilityDuration) {
+                    this.player.health -= 10;
+                    this.player.lastDamageTime = now;
+                    this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
+                }
             }
         }
 
@@ -705,29 +606,9 @@ export class StoryMode {
                 enemy.velocityY = 0;
                 enemy.isGrounded = true;
                 enemy.isJumping = false;
-
-                if (enemyBottom > groundY + 1) {
-                    console.log('CORRECCIÓN FORZADA - Enemigo estaba bajo el suelo:', enemyBottom - groundY, 'px');
-                }
             }
         }
 
-        // Actualizar jefe
-        if (this.boss) {
-            const dx = this.player.x - this.boss.x;
-            const dy = this.player.y - this.boss.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance > 0) {
-                this.boss.x += (dx / distance) * 0.8;
-                this.boss.y += (dy / distance) * 0.3;
-            }
-
-            if (this.checkCollision(this.boss, this.player)) {
-                this.player.health -= 10;
-                this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
-            }
-        }
     }
 
     // Método para determinar si un enemigo debe saltar
@@ -753,8 +634,8 @@ export class StoryMode {
         return false;
     }
 
-    updateGems() {
-        this.gemSpawnTimer += 16;
+    updateGems(deltaTime) {
+        this.gemSpawnTimer += deltaTime;
         if (this.gemSpawnTimer >= this.gemSpawnInterval && this.gems.length < this.maxGems) {
             this.spawnGem();
             this.gemSpawnTimer = 0;
@@ -762,21 +643,36 @@ export class StoryMode {
 
         for (let i = this.gems.length - 1; i >= 0; i--) {
             const gem = this.gems[i];
-            if (this.checkCollision(gem, this.player)) {
+            // Detección por distancia desde el centro VISUAL del personaje (no el hitbox de colisión)
+            // El sprite (153x153) se alinea por los pies con el hitbox (40x60),
+            // así que el centro visual está muy por encima del centro del hitbox.
+            const playerVisualCenterX = this.player.x + this.player.width / 2;
+            // El sprite se extiende ~88px arriba del hitbox top, centro visual ≈ 40px arriba del hitbox top
+            const playerVisualCenterY = this.player.y - 40;
+            const gemCenterX = gem.x + gem.width / 2;
+            const gemCenterY = gem.y + gem.height / 2;
+
+            const dx = playerVisualCenterX - gemCenterX;
+            const dy = playerVisualCenterY - gemCenterY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Radio de recogida que coincide con el cuerpo visible del personaje (~50px)
+            const pickupDistance = 50;
+            if (distance < pickupDistance) {
                 this.player.gems += 5;
                 this.score += 50;
-                this.createParticles(gem.x + gem.width / 2, gem.y + gem.height / 2, '#00FF00');
+                this.createParticles(gem.x + gem.width / 2, gem.y + gem.height / 2, '#FFD700');
                 this.gems.splice(i, 1);
             }
         }
     }
 
-    updateParticles() {
+    updateParticles(dt) {
         this.particles = this.particles.filter(particle => {
-            particle.x += particle.velocityX;
-            particle.y += particle.velocityY;
-            particle.velocityY += 0.2;
-            particle.life -= 2;
+            particle.x += particle.velocityX * dt;
+            particle.y += particle.velocityY * dt;
+            particle.velocityY += 0.2 * dt;
+            particle.life -= 2 * dt;
             return particle.life > 0;
         });
     }
@@ -804,28 +700,29 @@ export class StoryMode {
         enemy.velocityY = 0;
 
         this.enemies.push(enemy);
-        console.log('Enemigo spawn en:', spawnX, enemy.y, 'Piso en:', groundY, 'Altura enemigo:', enemy.height);
     }
 
-    spawnBoss() {
-        this.boss = {
-            x: this.config.width / 2,
-            y: 100,
-            width: 80,
-            height: 80,
-            velocityX: 0,
-            velocityY: 0,
-            color: '#8B0000', // Rojo oscuro
-            health: 50,
-            maxHealth: 50
-        };
-    }
+
 
     spawnGem() {
-        // Spawn gemas dentro del área visible de la cámara
+        // Spawn gemas dentro del área visible de la cámara, a alturas alcanzables
+        const groundY = this.config.height - 50;
+
+        // Generar tokens entre 80px y 200px por encima del suelo
+        // Esto los pone a la altura de la cabeza del jugador o un poco arriba (requiere saltar)
+        const minAboveGround = 80;  // Mínimo por encima del suelo (a la altura del jugador)
+        const maxAboveGround = 200; // Máximo por encima del suelo (alcanzable con salto)
+        const y = groundY - minAboveGround - Math.random() * (maxAboveGround - minAboveGround);
+
+        // Generar lejos del jugador para evitar recogida instantánea
+        let gemX;
+        do {
+            gemX = this.camera.x + Math.random() * (this.config.width - 20) + 10;
+        } while (Math.abs(gemX - this.player.x) < 150); // Mínimo 150px de distancia horizontal
+
         const gem = {
-            x: this.camera.x + Math.random() * (this.config.width - 20) + 10,
-            y: Math.random() * 200 + 100,
+            x: gemX,
+            y: y,
             width: 20,
             height: 20,
             color: '#FFD700'
@@ -906,7 +803,7 @@ export class StoryMode {
         }
     }
 
-    // updateHUD() eliminada - HUD ahora se dibuja directamente en el canvas
+
 
     render() {
         // Limpiar completamente el canvas al inicio de cada frame
@@ -964,10 +861,6 @@ export class StoryMode {
         // Aplicar transformación de la cámara
         this.ctx.translate(-this.camera.x, -this.camera.y);
 
-        // Dibujar elementos decorativos del fondo
-        this.renderDecorations();
-
-        // Dibujar plataformas
         // Dibujar plataformas
         for (const platform of this.platforms) {
             if (platform.isFloor && this.floorImageLoaded && this.floorImage.complete) {
@@ -1005,7 +898,7 @@ export class StoryMode {
 
                 // Offset vertical para que la colisión invisible (pies) encaje mejor con el dibujo
                 // Ajusta este numerito si aún ves que flota (mayor = imagen más arriba)
-                const offsetY = 17;
+                const offsetY = 30;
 
                 this.ctx.drawImage(
                     this.platformsImage,
@@ -1020,10 +913,15 @@ export class StoryMode {
 
         // Dibujar gemas
         for (const gem of this.gems) {
-            this.ctx.fillStyle = gem.color;
-            this.ctx.beginPath();
-            this.ctx.arc(gem.x + gem.width / 2, gem.y + gem.height / 2, gem.width / 2, 0, Math.PI * 2);
-            this.ctx.fill();
+            if (this.tokenImageLoaded && this.tokenImage.complete) {
+                // Dibujar la imagen del token un poco más grande que su caja de colisión
+                this.ctx.drawImage(this.tokenImage, gem.x - 5, gem.y - 5, gem.width + 10, gem.height + 10);
+            } else {
+                this.ctx.fillStyle = gem.color;
+                this.ctx.beginPath();
+                this.ctx.arc(gem.x + gem.width / 2, gem.y + gem.height / 2, gem.width / 2, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
         }
 
         // Dibujar enemigos con diseño de duende
@@ -1052,18 +950,7 @@ export class StoryMode {
             }
         }
 
-        // Dibujar jefe
-        if (this.boss) {
-            this.ctx.fillStyle = this.boss.color;
-            this.ctx.fillRect(this.boss.x, this.boss.y, this.boss.width, this.boss.height);
 
-            // Barra de vida del jefe
-            // const healthPercent = this.boss.health / this.boss.maxHealth;
-            // this.ctx.fillStyle = '#FF0000';
-            // this.ctx.fillRect(this.boss.x, this.boss.y - 20, this.boss.width * healthPercent, 5);
-            this.ctx.strokeStyle = '#FFFFFF';
-            this.ctx.strokeRect(this.boss.x, this.boss.y - 20, this.boss.width, 5);
-        }
 
         // Dibujar proyectiles con Espada de Fe (horizontal)
         for (const projectile of this.projectiles) {
@@ -1137,7 +1024,8 @@ export class StoryMode {
             // Offset para centrar el sprite en el collider
             const offsetX = playerCenterX - (scaledWidth / 2);
             // El collider tiene 60 de alto, el sprite es más grande, alineamos a nivel inferior
-            const offsetY = (this.player.y + this.player.height) - scaledHeight + 15;
+            // Se le quitó el offset que tenía (+15) para subirlo un poco y que no se hunda
+            const offsetY = (this.player.y + this.player.height) - scaledHeight + 6;
 
             this.ctx.drawImage(
                 this.characterSprite,
@@ -1181,22 +1069,9 @@ export class StoryMode {
             this.ctx.fillText('Presiona P para continuar', this.canvas.width / 2, this.canvas.height / 2 + 50);
         }
 
-        // Game over
+        // Game over — pantalla medieval
         if (this.gameOver) {
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.font = '48px Arial';
-            this.ctx.textAlign = 'center';
-
-            if (this.currentLevel >= this.maxLevel) {
-                this.ctx.fillText('¡HISTORIA COMPLETADA!', this.canvas.width / 2, this.canvas.height / 2);
-            } else {
-                this.ctx.fillText('HAS MUERTO, ¿DESEAS VOLVER A EMPEZAR?', this.canvas.width / 2, this.canvas.height / 2);
-
-                // Dibujar botones SÍ y NO
-                this.drawGameOverButtons();
-            }
+            this.drawMedievalGameOver();
         }
 
         // HUD con estilo pixelado - barra de vida
@@ -1304,17 +1179,25 @@ export class StoryMode {
 
             this.ctx.restore();
 
-            // DEBUG MSG ANIMACIONES
-            this.ctx.fillStyle = '#00FF00';
-            this.ctx.font = '16px monospace';
+            // HUD — Score y Tokens
+            this.ctx.save();
+            this.ctx.font = 'bold 14px Georgia, serif';
             this.ctx.textAlign = 'left';
-            this.ctx.fillText(`CámaraX: ${Math.floor(this.camera.x)}`, 20, 95);
-            let totalLocalFrames = 0;
-            if (this.spriteConfig && this.spriteConfig.animations[this.animationState]) {
-                const cfg = this.spriteConfig.animations[this.animationState];
-                totalLocalFrames = (cfg.end - cfg.start) + 1;
-            }
-            this.ctx.fillText(`Animación: ${this.animationState} | Frame: ${this.animationFrame}/${totalLocalFrames} | Timer: ${Math.floor(this.animationTimer)}/spd`, 20, 115);
+            this.ctx.textBaseline = 'top';
+
+            // Score
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillText(`⚔ Score: ${this.score}`, barX + 1, barY + height + 11);
+            this.ctx.fillStyle = '#FFD700';
+            this.ctx.fillText(`⚔ Score: ${this.score}`, barX, barY + height + 10);
+
+            // Oro
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillText(`🪙 Oro: ${this.player.gems}`, barX + 1, barY + height + 31);
+            this.ctx.fillStyle = '#FFD700';
+            this.ctx.fillText(`🪙 Oro: ${this.player.gems}`, barX, barY + height + 30);
+
+            this.ctx.restore();
         }
     }
 
@@ -1331,7 +1214,7 @@ export class StoryMode {
             if (!this.gameOver) {
                 this.handleInput(); // Siempre llamar handleInput para poder pausar/reanudar
                 if (!this.paused) {
-                    this.updatePhysics();
+                    this.updatePhysics(deltaTime);
                     // updateHUD() eliminada - HUD ahora se dibuja en canvas
                 }
             }
@@ -1356,49 +1239,215 @@ export class StoryMode {
         }
     }
 
-    drawGameOverButtons() {
-        // Calcular posiciones de los botones
-        const centerX = this.canvas.width / 2;
-        const buttonY = this.canvas.height / 2 + 80;
-        const spacing = 180;
+    drawMedievalGameOver() {
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
 
-        // Actualizar posiciones
-        this.gameOverButtons.yes.x = centerX - spacing;
-        this.gameOverButtons.yes.y = buttonY;
-        this.gameOverButtons.no.x = centerX + spacing - this.gameOverButtons.no.width;
-        this.gameOverButtons.no.y = buttonY;
+        // ── Fondo oscuro con viñeta radial ──
+        const vignette = this.ctx.createRadialGradient(cx, cy, h * 0.15, cx, cy, h * 0.85);
+        vignette.addColorStop(0, 'rgba(15, 10, 5, 0.80)');
+        vignette.addColorStop(0.6, 'rgba(8, 5, 2, 0.90)');
+        vignette.addColorStop(1, 'rgba(0, 0, 0, 0.97)');
+        this.ctx.fillStyle = vignette;
+        this.ctx.fillRect(0, 0, w, h);
 
-        // Dibujar botones con estilo medieval
+        // ── Partículas de ceniza flotante ──
+        const time = Date.now() / 1000;
+        this.ctx.fillStyle = 'rgba(200, 150, 80, 0.15)';
+        for (let i = 0; i < 30; i++) {
+            const px = (cx + Math.sin(time * 0.3 + i * 47) * w * 0.4) % w;
+            const py = (h - ((time * 15 + i * 73) % h));
+            this.ctx.beginPath();
+            this.ctx.arc(px, py, 1.5 + Math.sin(i) * 0.5, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+
+        // ── Líneas decorativas celtas ──
+        const lineY1 = cy - 80;
+        const lineY2 = cy + 30;
+        const lineW = Math.min(w * 0.6, 500);
+
+        this.ctx.strokeStyle = '#8B6914';
+        this.ctx.lineWidth = 2;
+        this.ctx.globalAlpha = 0.6;
+
+        // Línea superior con adornos
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx - lineW / 2, lineY1);
+        this.ctx.lineTo(cx + lineW / 2, lineY1);
+        this.ctx.stroke();
+        // Diamante central superior
+        this.ctx.fillStyle = '#8B6914';
+        this.ctx.save();
+        this.ctx.translate(cx, lineY1);
+        this.ctx.rotate(Math.PI / 4);
+        this.ctx.fillRect(-5, -5, 10, 10);
+        this.ctx.restore();
+        // Diamantes laterales
+        for (const side of [-1, 1]) {
+            this.ctx.save();
+            this.ctx.translate(cx + side * (lineW / 2 - 20), lineY1);
+            this.ctx.rotate(Math.PI / 4);
+            this.ctx.fillRect(-3, -3, 6, 6);
+            this.ctx.restore();
+        }
+
+        // Línea inferior
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx - lineW / 2, lineY2);
+        this.ctx.lineTo(cx + lineW / 2, lineY2);
+        this.ctx.stroke();
+        this.ctx.save();
+        this.ctx.translate(cx, lineY2);
+        this.ctx.rotate(Math.PI / 4);
+        this.ctx.fillRect(-5, -5, 10, 10);
+        this.ctx.restore();
+
+        this.ctx.globalAlpha = 1.0;
+
+        // ── Ícono de calavera ──
+        const skullY = cy - 130;
+        this.ctx.font = '40px serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillStyle = 'rgba(180, 140, 80, 0.5)';
+        this.ctx.fillText('☠', cx, skullY);
+
+        // ── Texto principal ──
+        const fontSize = Math.min(w * 0.055, 42);
+        this.ctx.font = `bold ${fontSize}px Georgia, "Times New Roman", serif`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+
+        const textY = cy - 45;
+
+        // Sombra profunda
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+        this.ctx.fillText('HAS MUERTO', cx + 3, textY + 3);
+        // Resplandor dorado exterior
+        this.ctx.shadowColor = '#A0801A';
+        this.ctx.shadowBlur = 20;
+        this.ctx.fillStyle = '#C9A84C';
+        this.ctx.fillText('HAS MUERTO', cx, textY);
+        this.ctx.shadowBlur = 0;
+
+        // Subtítulo
+        const subFontSize = Math.min(w * 0.028, 22);
+        this.ctx.font = `${subFontSize}px Georgia, serif`;
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        this.ctx.fillText('¿Deseas volver a empezar?', cx + 2, textY + fontSize * 0.9 + 2);
+        this.ctx.fillStyle = '#B8976A';
+        this.ctx.fillText('¿Deseas volver a empezar?', cx, textY + fontSize * 0.9);
+
+        // ── Estadísticas ──
+        const statsY = cy + 50;
+        this.ctx.font = `${Math.min(w * 0.018, 14)}px Georgia, serif`;
+        this.ctx.fillStyle = '#7A6844';
+        this.ctx.fillText(`⚔ Score: ${this.score}   |   👹 Enemigos: ${this.player.enemiesDefeated}   |   🪙 Oro: ${this.player.gems}`, cx, statsY);
+
+        // ── Botones medievales ──
+        const btnW = Math.min(w * 0.16, 140);
+        const btnH = 48;
+        const btnY = cy + 85;
+        const spacing = btnW * 0.6;
+
+        // Actualizar posiciones de botones para detección de clicks
+        this.gameOverButtons.yes.x = cx - spacing - btnW / 2;
+        this.gameOverButtons.yes.y = btnY;
+        this.gameOverButtons.yes.width = btnW;
+        this.gameOverButtons.yes.height = btnH;
+        this.gameOverButtons.no.x = cx + spacing - btnW / 2;
+        this.gameOverButtons.no.y = btnY;
+        this.gameOverButtons.no.width = btnW;
+        this.gameOverButtons.no.height = btnH;
+
         [this.gameOverButtons.yes, this.gameOverButtons.no].forEach(button => {
-            // Fondo del botón
-            const gradient = this.ctx.createLinearGradient(
-                button.x, button.y,
-                button.x, button.y + button.height
-            );
+            const bx = button.x;
+            const by = button.y;
 
+            // Resplandor hover
             if (button.hovered) {
-                gradient.addColorStop(0, '#CDAF87');
-                gradient.addColorStop(1, '#8B6914');
-            } else {
-                gradient.addColorStop(0, '#8B6914');
-                gradient.addColorStop(1, '#654321');
+                this.ctx.shadowColor = '#D4A845';
+                this.ctx.shadowBlur = 18;
             }
 
-            // Borde del botón
-            this.ctx.fillStyle = '#654321';
-            this.ctx.fillRect(button.x - 4, button.y - 4, button.width + 8, button.height + 8);
+            // Borde exterior oscuro (hierro forjado)
+            this.ctx.fillStyle = '#1A1005';
+            this.roundRect(bx - 4, by - 4, btnW + 8, btnH + 8, 6);
+            this.ctx.fill();
 
-            // Fondo principal
-            this.ctx.fillStyle = gradient;
-            this.ctx.fillRect(button.x, button.y, button.width, button.height);
+            // Borde dorado medio
+            this.ctx.fillStyle = '#5C4A1E';
+            this.roundRect(bx - 2, by - 2, btnW + 4, btnH + 4, 5);
+            this.ctx.fill();
 
-            // Texto
-            this.ctx.fillStyle = '#FFE5C2';
-            this.ctx.font = 'bold 24px Georgia';
+            // Fondo principal con gradiente bronce
+            const btnGrad = this.ctx.createLinearGradient(bx, by, bx, by + btnH);
+            if (button.hovered) {
+                btnGrad.addColorStop(0, '#C9A84C');
+                btnGrad.addColorStop(0.4, '#A0801A');
+                btnGrad.addColorStop(0.6, '#8B6914');
+                btnGrad.addColorStop(1, '#6B4F10');
+            } else {
+                btnGrad.addColorStop(0, '#8B6914');
+                btnGrad.addColorStop(0.4, '#6B4F10');
+                btnGrad.addColorStop(0.6, '#5C4A1E');
+                btnGrad.addColorStop(1, '#3D2E0A');
+            }
+            this.ctx.fillStyle = btnGrad;
+            this.roundRect(bx, by, btnW, btnH, 4);
+            this.ctx.fill();
+
+            // Bisel superior (luz)
+            this.ctx.fillStyle = 'rgba(255, 220, 150, 0.15)';
+            this.roundRect(bx + 2, by + 2, btnW - 4, btnH / 2 - 2, 3);
+            this.ctx.fill();
+
+            // Línea grabada interior
+            this.ctx.strokeStyle = 'rgba(90, 60, 10, 0.5)';
+            this.ctx.lineWidth = 1;
+            this.roundRect(bx + 4, by + 4, btnW - 8, btnH - 8, 3);
+            this.ctx.stroke();
+
+            // Remaches decorativos en esquinas
+            this.ctx.fillStyle = '#A08030';
+            for (const [rx, ry] of [[bx + 8, by + 8], [bx + btnW - 8, by + 8], [bx + 8, by + btnH - 8], [bx + btnW - 8, by + btnH - 8]]) {
+                this.ctx.beginPath();
+                this.ctx.arc(rx, ry, 2.5, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+
+            this.ctx.shadowBlur = 0;
+
+            // Texto del botón
+            const btnFontSize = Math.min(w * 0.025, 22);
+            this.ctx.font = `bold ${btnFontSize}px Georgia, serif`;
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
-            this.ctx.fillText(button.text, button.x + button.width / 2, button.y + button.height / 2);
+            // Sombra
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillText(button.text, bx + btnW / 2 + 1, by + btnH / 2 + 2);
+            // Texto principal
+            this.ctx.fillStyle = button.hovered ? '#FFF5DC' : '#FFE5C2';
+            this.ctx.fillText(button.text, bx + btnW / 2, by + btnH / 2);
         });
+    }
+
+    // Utilidad para dibujar rectángulos redondeados
+    roundRect(x, y, w, h, r) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + r, y);
+        this.ctx.lineTo(x + w - r, y);
+        this.ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        this.ctx.lineTo(x + w, y + h - r);
+        this.ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        this.ctx.lineTo(x + r, y + h);
+        this.ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        this.ctx.lineTo(x, y + r);
+        this.ctx.quadraticCurveTo(x, y, x + r, y);
+        this.ctx.closePath();
     }
 
     setupMouseControls() {
