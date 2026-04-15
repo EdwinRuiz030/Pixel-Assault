@@ -144,7 +144,7 @@ export class StoryMode {
         this.gems = [];
         this.maxGems = 5; // Cantidad fija de gemas en el escenario
         this.gemSpawnTimer = 0;
-        this.gemSpawnInterval = 2000;
+        this.gemSpawnInterval = 7000;
 
         // Proyectiles
         this.projectiles = [];
@@ -190,7 +190,7 @@ export class StoryMode {
                 idle: { start: 0, end: 3 },
                 walking: { start: 4, end: 18 },
                 jumping: { start: 19, end: 30 },
-                attacking: { start: 33, end: 48 }
+                attacking: { start: 33, end: 43 }
             }
         };
 
@@ -262,37 +262,82 @@ export class StoryMode {
             isFloor: true
         });
 
-        // Plataformas flotantes — posiciones Y relativas al suelo para adaptarse a cualquier resolución
-        // Salto máximo ~144px, así que las plataformas están en 3 niveles alcanzables:
-        //   Nivel 1: 100-130px sobre el suelo (alcanzable desde el suelo)
-        //   Nivel 2: 200-240px sobre el suelo (alcanzable desde nivel 1)
-        //   Nivel 3: 300-340px sobre el suelo (alcanzable desde nivel 2)
+        // Plataformas flotantes — alturas variadas y patrones únicos por zona
+        // Salto máximo ~144px. Nivel 1: alcanzable desde suelo. Nivel 2: alcanzable desde nivel 1 cercano.
         const groundY = this.config.height - 50;
 
         const floatingPlatforms = [
-            // Nivel 1 — alcanzable desde el suelo
-            { x: 400, y: groundY - 120, width: 120, height: 20 },
-            { x: 1050, y: groundY - 100, width: 110, height: 20 },
-            { x: 2100, y: groundY - 110, width: 150, height: 20 },
-            { x: 2700, y: groundY - 120, width: 140, height: 20 },
-            { x: 3300, y: groundY - 100, width: 130, height: 20 },
-            { x: 4500, y: groundY - 110, width: 120, height: 20 },
-            { x: 5100, y: groundY - 120, width: 130, height: 20 },
-            { x: 5700, y: groundY - 100, width: 100, height: 20 },
-            // Nivel 2 — alcanzable desde nivel 1
-            { x: 600, y: groundY - 220, width: 100, height: 20 },
-            { x: 1550, y: groundY - 210, width: 120, height: 20 },
-            { x: 2400, y: groundY - 230, width: 120, height: 20 },
-            { x: 3000, y: groundY - 220, width: 110, height: 20 },
-            { x: 3900, y: groundY - 210, width: 100, height: 20 },
-            { x: 4800, y: groundY - 230, width: 110, height: 20 },
-            { x: 5400, y: groundY - 220, width: 120, height: 20 },
-            // Nivel 3 — alcanzable desde nivel 2
-            { x: 800, y: groundY - 330, width: 140, height: 20 },
-            { x: 1300, y: groundY - 320, width: 130, height: 20 },
-            { x: 1800, y: groundY - 310, width: 100, height: 20 },
-            { x: 3600, y: groundY - 330, width: 120, height: 20 },
-            { x: 4200, y: groundY - 320, width: 140, height: 20 }
+            // === ZONA 1: Escalera ascendente (x: 300-1100) ===
+            { x: 350,  y: groundY - 60,  width: 150, height: 20 },
+            { x: 580,  y: groundY - 100, width: 120, height: 20 },
+            { x: 820,  y: groundY - 135, width: 100, height: 20 },
+            { x: 700,  y: groundY - 210, width: 90,  height: 20 },
+
+            // === ZONA 2: Plataformas bajas y anchas (x: 1200-1900) ===
+            { x: 1200, y: groundY - 70,  width: 180, height: 20 },
+            { x: 1500, y: groundY - 80,  width: 160, height: 20 },
+            { x: 1750, y: groundY - 65,  width: 170, height: 20 },
+
+            // === ZONA 3: Zigzag vertical (x: 2000-2800) ===
+            { x: 2050, y: groundY - 130, width: 100, height: 20 },
+            { x: 2250, y: groundY - 70,  width: 110, height: 20 },
+            { x: 2450, y: groundY - 120, width: 95,  height: 20 },
+            { x: 2650, y: groundY - 60,  width: 130, height: 20 },
+            { x: 2350, y: groundY - 200, width: 85,  height: 20 },
+
+            // === ZONA 4: Torre con escalones (x: 2900-3500) ===
+            { x: 2950, y: groundY - 80,  width: 140, height: 20 },
+            { x: 3100, y: groundY - 140, width: 110, height: 20 },
+            { x: 3050, y: groundY - 205, width: 100, height: 20 },
+            { x: 3350, y: groundY - 90,  width: 120, height: 20 },
+
+            // === ZONA 5: Plataformas gemelas (x: 3600-4300) ===
+            { x: 3650, y: groundY - 100, width: 100, height: 20 },
+            { x: 3850, y: groundY - 100, width: 100, height: 20 },
+            { x: 3750, y: groundY - 190, width: 130, height: 20 },
+            { x: 4100, y: groundY - 75,  width: 150, height: 20 },
+
+            // === ZONA 6: Dispersas y variadas (x: 4400-5200) ===
+            { x: 4450, y: groundY - 115, width: 90,  height: 20 },
+            { x: 4700, y: groundY - 60,  width: 170, height: 20 },
+            { x: 4950, y: groundY - 130, width: 80,  height: 20 },
+            { x: 4600, y: groundY - 195, width: 100, height: 20 },
+            { x: 5150, y: groundY - 85,  width: 140, height: 20 },
+
+            // === ZONA 7: Escalera descendente (x: 5300-6100) ===
+            { x: 5350, y: groundY - 140, width: 100, height: 20 },
+            { x: 5550, y: groundY - 110, width: 120, height: 20 },
+            { x: 5780, y: groundY - 75,  width: 150, height: 20 },
+            { x: 5450, y: groundY - 210, width: 85,  height: 20 },
+            { x: 6050, y: groundY - 95,  width: 110, height: 20 },
+
+            // === ZONA 8: Puente con hueco (x: 6200-7000) ===
+            { x: 6250, y: groundY - 90,  width: 160, height: 20 },
+            { x: 6600, y: groundY - 90,  width: 160, height: 20 },
+            { x: 6420, y: groundY - 185, width: 100, height: 20 },
+            { x: 6900, y: groundY - 120, width: 100, height: 20 },
+
+            // === ZONA 9: Alturas extremas variadas (x: 7100-7900) ===
+            { x: 7150, y: groundY - 60,  width: 180, height: 20 },
+            { x: 7400, y: groundY - 135, width: 90,  height: 20 },
+            { x: 7600, y: groundY - 70,  width: 120, height: 20 },
+            { x: 7500, y: groundY - 200, width: 95,  height: 20 },
+            { x: 7850, y: groundY - 105, width: 130, height: 20 },
+
+            // === ZONA 10: Compactas y cercanas (x: 8000-8700) ===
+            { x: 8050, y: groundY - 85,  width: 100, height: 20 },
+            { x: 8200, y: groundY - 120, width: 100, height: 20 },
+            { x: 8350, y: groundY - 80,  width: 100, height: 20 },
+            { x: 8500, y: groundY - 130, width: 100, height: 20 },
+            { x: 8250, y: groundY - 205, width: 90,  height: 20 },
+
+            // === ZONA 11: Final del mapa (x: 8800-9700) ===
+            { x: 8850, y: groundY - 70,  width: 140, height: 20 },
+            { x: 9050, y: groundY - 110, width: 110, height: 20 },
+            { x: 9250, y: groundY - 140, width: 100, height: 20 },
+            { x: 9150, y: groundY - 210, width: 85,  height: 20 },
+            { x: 9500, y: groundY - 90,  width: 150, height: 20 },
+            { x: 9700, y: groundY - 65,  width: 130, height: 20 },
         ];
 
         floatingPlatforms.forEach(platform => {
@@ -333,8 +378,26 @@ export class StoryMode {
             return;
         }
 
-        // Movimiento horizontal
-        if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
+        // Movimiento horizontal — se bloquea durante la animación de ataque
+        // pero si el jugador presiona una tecla de movimiento, cancela el ataque
+        if (this.animationState === 'attacking') {
+            if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
+                // Cancelar animación de ataque y mover a la izquierda
+                this.animationState = 'walking';
+                this.animationFrame = 0;
+                this.player.velocityX = -this.config.playerSpeed;
+                this.player.facing = -1;
+            } else if (this.keys['KeyD'] || this.keys['ArrowRight']) {
+                // Cancelar animación de ataque y mover a la derecha
+                this.animationState = 'walking';
+                this.animationFrame = 0;
+                this.player.velocityX = this.config.playerSpeed;
+                this.player.facing = 1;
+            } else {
+                // Sin tecla de movimiento: detener al personaje mientras ataca
+                this.player.velocityX = 0;
+            }
+        } else if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
             this.player.velocityX = -this.config.playerSpeed;
             this.player.facing = -1;
         } else if (this.keys['KeyD'] || this.keys['ArrowRight']) {
@@ -476,10 +539,18 @@ export class StoryMode {
             for (let i = this.enemies.length - 1; i >= 0; i--) {
                 const enemy = this.enemies[i];
                 if (this.checkCollision(projectile, enemy)) {
-                    this.enemies.splice(i, 1);
-                    this.createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#FF00FF');
-                    this.player.enemiesDefeated++;
-                    this.score += 100;
+                    // Restar vida al enemigo
+                    enemy.health--;
+                    
+                    // Crear partículas de impacto
+                    this.createParticles(projectile.x, projectile.y, '#FF00FF');
+
+                    if (enemy.health <= 0) {
+                        this.enemies.splice(i, 1);
+                        this.createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#FF00FF');
+                        this.player.enemiesDefeated++;
+                        this.score += 100;
+                    }
                     return false;
                 }
             }
@@ -647,8 +718,8 @@ export class StoryMode {
             // El sprite (153x153) se alinea por los pies con el hitbox (40x60),
             // así que el centro visual está muy por encima del centro del hitbox.
             const playerVisualCenterX = this.player.x + this.player.width / 2;
-            // El sprite se extiende ~88px arriba del hitbox top, centro visual ≈ 40px arriba del hitbox top
-            const playerVisualCenterY = this.player.y - 40;
+            // Centro del cuerpo del personaje para recogida
+            const playerVisualCenterY = this.player.y + this.player.height / 2;
             const gemCenterX = gem.x + gem.width / 2;
             const gemCenterY = gem.y + gem.height / 2;
 
@@ -690,7 +761,8 @@ export class StoryMode {
             velocityX: 0,
             velocityY: 0, // Inicializar velocidad Y en 0
             color: '#9400D3',
-            health: 1,
+            maxHealth: 3,
+            health: 3,
             isGrounded: true, // Comenzar en el suelo
             isJumping: false
         };
@@ -761,8 +833,8 @@ export class StoryMode {
         // 1. Prioridad: Ataque
         if (this.animationState === 'attacking') {
             const timeSinceAttack = Date.now() - (this.attackAnimationTimer || 0);
-            // El ataque tiene 16 frames, durará aprox 16 * 80 = 1280ms
-            if (timeSinceAttack > 1280) {
+            // El ataque tiene 11 frames, durará aprox 11 * 80 = 880ms
+            if (timeSinceAttack > 880) {
                 this.animationState = 'idle';
             } else {
                 currentAnimationSpeed = 80; // Ataque más lento
@@ -931,13 +1003,63 @@ export class StoryMode {
                 const duendeWidth = 100;  // Ancho aumentado para mejor proporción
                 const duendeHeight = 150; // Alto proporcional (1.5x el ancho)
 
+                // Determinar si el enemigo debe voltear hacia el jugador
+                // El sprite del duende mira a la izquierda por defecto,
+                // así que volteamos cuando el jugador está a la derecha
+                const enemyFacingRight = this.player.x > enemy.x;
+
+                this.ctx.save();
+
+                const drawX = enemy.x - duendeWidth / 2;
+                const drawY = enemy.y;
+
+                if (enemyFacingRight) {
+                    // Voltear horizontalmente para mirar a la derecha
+                    this.ctx.translate(enemy.x, 0);
+                    this.ctx.scale(-1, 1);
+                    this.ctx.translate(-enemy.x, 0);
+                }
+
                 this.ctx.drawImage(
                     this.duendeImage,
-                    enemy.x - duendeWidth / 2, // Centrar horizontalmente
-                    enemy.y,                   // Posición Y es la base del sprite
+                    drawX,
+                    drawY,
                     duendeWidth,
                     duendeHeight
                 );
+
+                // --- BARRA DE VIDA MEDIEVAL PARA ENEMIGO ---
+                const hpBarWidth = 60;
+                const hpBarHeight = 8;
+                const hpBarX = enemy.x - hpBarWidth / 2;
+                const hpBarY = enemy.y - 15; // Un poco por encima del duende
+
+                // 1. Marco de hierro/madera oscura
+                this.ctx.fillStyle = '#1a1105';
+                this.ctx.fillRect(hpBarX, hpBarY, hpBarWidth, hpBarHeight);
+
+                // 2. Fondo de la barra (Rojo muy oscuro/sangre seca)
+                this.ctx.fillStyle = '#2a0505';
+                this.ctx.fillRect(hpBarX + 1, hpBarY + 1, hpBarWidth - 2, hpBarHeight - 2);
+
+                // 3. Relleno de vida (Sangre fresca)
+                const hpPercentage = enemy.health / enemy.maxHealth;
+                const fillWidth = (hpBarWidth - 2) * Math.max(0, hpPercentage);
+                
+                if (fillWidth > 0) {
+                    const grad = this.ctx.createLinearGradient(hpBarX, hpBarY, hpBarX, hpBarY + hpBarHeight);
+                    grad.addColorStop(0, '#ff4d4d');
+                    grad.addColorStop(0.5, '#cc0000');
+                    grad.addColorStop(1, '#8b0000');
+                    this.ctx.fillStyle = grad;
+                    this.ctx.fillRect(hpBarX + 1, hpBarY + 1, fillWidth, hpBarHeight - 2);
+
+                    // Reflejo/brillo metálico
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                    this.ctx.fillRect(hpBarX + 1, hpBarY + 1, fillWidth, (hpBarHeight - 2) / 2);
+                }
+
+                this.ctx.restore();
             } else {
                 // Fallback - dibujar rectángulo simple con posición corregida
                 this.ctx.fillStyle = enemy.color;
