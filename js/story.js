@@ -73,22 +73,14 @@ export class StoryMode {
 
         // Botones de game over
         this.gameOverButtons = {
-            yes: {
-                x: 0,
-                y: 0,
-                width: 150,
-                height: 50,
-                text: 'SÍ',
-                hovered: false
-            },
-            no: {
-                x: 0,
-                y: 0,
-                width: 150,
-                height: 50,
-                text: 'NO',
-                hovered: false
-            }
+            yes: { x: 0, y: 0, width: 150, height: 50, text: 'SÍ', hovered: false },
+            no: { x: 0, y: 0, width: 150, height: 50, text: 'NO', hovered: false }
+        };
+
+        // Botones de victoria
+        this.victoryButtons = {
+            restart: { x: 0, y: 0, width: 150, height: 50, text: 'REINICIAR', hovered: false },
+            menu: { x: 0, y: 0, width: 150, height: 50, text: 'MENÚ', hovered: false }
         };
 
         // Sistema de scroll (manual - cámara sigue al jugador)
@@ -146,6 +138,41 @@ export class StoryMode {
         this.gemSpawnTimer = 0;
         this.gemSpawnInterval = 7000;
 
+        // Sistema de Frases de Muerte
+        this.deathPhrases = [
+            "Tu trayectoria ha sido desviada por el destino",
+            "Tu vuelo terminó antes de tocar el cielo de la victoria",
+            "Luchaste como un león, caíste como un hombre",
+            "Tu linaje termina aquí, y con él, tus promesas",
+            "Tu sangre riega las raíces del olvido",
+            "Las sombras consumen tu último suspiro",
+            "El eco de tu acero se apaga en el silencio",
+            "Ni los dioses pudieron salvar tu alma",
+            "Tu nombre será borrado de los anales del tiempo",
+            "La victoria fue solo un espejismo en tu camino"
+        ];
+        this.currentDeathPhrase = "";
+
+        // Tokens de Curación
+        this.healingTokens = [];
+        this.maxHealingTokens = 3;
+        this.healingTokenSpawnTimer = 0;
+        this.healingTokenSpawnInterval = 60000; // 1 minuto (60,000 ms)
+        
+        // Estado de teclas táctiles
+        this.touchKeys = {};
+        this.setupResizeHandler();
+
+        // Estado de Victoria y Dificultad
+        this.victory = false;
+        this.targetSurvivalTime = 180; // 3 minutos en segundos
+        this.difficultyMultiplier = 1.0;
+
+        // Sistema Anti-Camping
+        this.playerStillTimer = 0;
+        this.lastPlayerX = this.player.x;
+        this.campingThreshold = 5000; // 5 segundos para invocar castigo
+
         // Proyectiles
         this.projectiles = [];
 
@@ -194,11 +221,23 @@ export class StoryMode {
             }
         };
 
-        // Duende para enemigos básicos
+        // Duende para enemigos básicos (Hoja de sprites 768x768, 3x3)
         this.duendeImage = new Image();
         this.duendeImageLoaded = false;
         this.duendeImage.onload = () => { this.duendeImageLoaded = true; };
-        this.duendeImage.src = 'img/Duende.png';
+        this.duendeImage.src = 'img/duende acciones.png';
+
+        // Configuración de la hoja de sprites del duende
+        this.duendeSpriteConfig = {
+            frameWidth: 256,
+            frameHeight: 256,
+            framesPerRow: 3,
+            animations: {
+                reposo: { start: 0, end: 1 },
+                caminar: { start: 2, end: 5 },
+                ataque: { start: 6, end: 8 }
+            }
+        };
 
         // Imagen del piso escenario
         this.floorImage = new Image();
@@ -229,6 +268,12 @@ export class StoryMode {
         this.tokenImage.onload = () => { this.tokenImageLoaded = true; };
         this.tokenImage.src = 'img/token.png';
 
+        // Imagen del token de curación
+        this.healingTokenImage = new Image();
+        this.healingTokenImageLoaded = false;
+        this.healingTokenImage.onload = () => { this.healingTokenImageLoaded = true; };
+        this.healingTokenImage.src = 'img/curacion.png';
+
 
 
         // Estado del nivel
@@ -243,6 +288,7 @@ export class StoryMode {
 
         this.setupControls();
         this.setupMouseControls();
+        this.setupTouchControls();
         // Eliminado showLevelIntro() y updateHUD() para empezar directamente con acción
         this.gameLoop();
 
@@ -397,10 +443,10 @@ export class StoryMode {
                 // Sin tecla de movimiento: detener al personaje mientras ataca
                 this.player.velocityX = 0;
             }
-        } else if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
+        } else if (this.keys['KeyA'] || this.keys['ArrowLeft'] || this.touchKeys['left']) {
             this.player.velocityX = -this.config.playerSpeed;
             this.player.facing = -1;
-        } else if (this.keys['KeyD'] || this.keys['ArrowRight']) {
+        } else if (this.keys['KeyD'] || this.keys['ArrowRight'] || this.touchKeys['right']) {
             this.player.velocityX = this.config.playerSpeed;
             this.player.facing = 1;
         } else {
@@ -408,16 +454,17 @@ export class StoryMode {
         }
 
         // Salto
-        if ((this.keys['KeyW'] || this.keys['ArrowUp'] || this.keys['Space']) && this.player.isGrounded) {
+        if ((this.keys['KeyW'] || this.keys['ArrowUp'] || this.keys['Space'] || this.touchKeys['jump']) && this.player.isGrounded) {
             this.player.velocityY = -this.config.jumpPower;
             this.player.isJumping = true;
             this.player.isGrounded = false;
         }
 
         // Ataque
-        if (this.keys['KeyF']) {
+        if (this.keys['KeyF'] || this.touchKeys['attack']) {
             this.playerAttack();
             this.keys['KeyF'] = false;
+            this.touchKeys['attack'] = false;
         }
 
         // Cambiar modo de disparo
@@ -572,9 +619,39 @@ export class StoryMode {
         // Actualizar tiempo de supervivencia
         this.player.survivalTime = Math.floor((Date.now() - this.levelStartTime) / 1000);
 
+        // Actualizar multiplicador de dificultad (cada minuto aumenta 0.5x)
+        const minutesElapsed = Math.floor(this.player.survivalTime / 60);
+        this.difficultyMultiplier = 1.0 + (minutesElapsed * 0.5);
+
+        // Lógica Anti-Camping
+        const distanceMoved = Math.abs(this.player.x - this.lastPlayerX);
+        if (distanceMoved < 2) { // Si se mueve menos de 2px (casi quieto)
+            this.playerStillTimer += deltaTime;
+            if (this.playerStillTimer >= this.campingThreshold) {
+                this.spawnEnemy(true); // Aparecer por la espalda
+                this.playerStillTimer = 0; // Resetear para el siguiente spawn si sigue quieto
+                console.log('¡Castigo por camping! Enemigo invocado por la espalda.');
+            }
+        } else {
+            this.playerStillTimer = 0;
+            this.lastPlayerX = this.player.x;
+        }
+
+        // Verificar condición de victoria
+        if (this.player.survivalTime >= this.targetSurvivalTime) {
+            this.victory = true;
+            this.paused = true; // Pausar juego al ganar
+        }
+
+        // Actualizar tokens de curación
+        this.updateHealingTokens(deltaTime);
+
         // Verificar si el jugador sigue vivo
         if (this.player.health <= 0) {
-            this.gameOver = true;
+            if (!this.gameOver) {
+                this.gameOver = true;
+                this.currentDeathPhrase = this.deathPhrases[Math.floor(Math.random() * this.deathPhrases.length)].toUpperCase();
+            }
         }
     }
 
@@ -607,7 +684,10 @@ export class StoryMode {
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance > 0) {
-                const moveX = (dx / distance) * 1.5 * dt;
+                // Velocidad base de 1.5 escalada por dificultad
+                const baseEnemySpeed = 1.5;
+                const currentEnemySpeed = baseEnemySpeed * this.difficultyMultiplier;
+                const moveX = (dx / distance) * currentEnemySpeed * dt;
                 enemy.x += moveX;
 
                 // Detectar si hay una plataforma adelante y saltar si es necesario
@@ -655,11 +735,52 @@ export class StoryMode {
                 enemy.isJumping = false;
             }
 
+            // Lógica de animación del duende
+            enemy.animationTimer += 16.67 * dt;
+            
+            // Determinar estado de animación
+            const isMoving = Math.abs(dx) > 1;
+            const isAttacking = distance < 60; // Distancia para considerar ataque visual
+
+            if (isAttacking) {
+                if (enemy.animationState !== 'ataque') {
+                    enemy.animationState = 'ataque';
+                    enemy.animationFrame = 0;
+                    enemy.animationTimer = 0;
+                }
+            } else if (isMoving) {
+                if (enemy.animationState !== 'caminar') {
+                    enemy.animationState = 'caminar';
+                    enemy.animationFrame = 0;
+                    enemy.animationTimer = 0;
+                }
+                enemy.facing = dx > 0 ? 1 : -1;
+            } else {
+                if (enemy.animationState !== 'reposo') {
+                    enemy.animationState = 'reposo';
+                    enemy.animationFrame = 0;
+                    enemy.animationTimer = 0;
+                }
+            }
+
+            // Ciclo de frames
+            const animConfig = this.duendeSpriteConfig.animations[enemy.animationState];
+            const numFrames = (animConfig.end - animConfig.start) + 1;
+            
+            if (enemy.animationTimer >= enemy.animationSpeed) {
+                enemy.animationFrame = (enemy.animationFrame + 1) % numFrames;
+                enemy.animationTimer = 0;
+            }
+
             // Colisión con jugador (con i-frames para evitar daño continuo)
             if (this.checkCollision(enemy, this.player)) {
                 const now = Date.now();
                 if (now - this.player.lastDamageTime > this.player.invincibilityDuration) {
-                    this.player.health -= 10;
+                    // Daño base de 10 escalado por la dificultad
+                    const baseDamage = 10;
+                    const scaledDamage = baseDamage * this.difficultyMultiplier;
+                    
+                    this.player.health -= scaledDamage;
                     this.player.lastDamageTime = now;
                     this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
                 }
@@ -738,6 +859,35 @@ export class StoryMode {
         }
     }
 
+    updateHealingTokens(deltaTime) {
+        this.healingTokenSpawnTimer += deltaTime;
+        if (this.healingTokenSpawnTimer >= this.healingTokenSpawnInterval && this.healingTokens.length < this.maxHealingTokens) {
+            this.spawnHealingToken();
+            this.healingTokenSpawnTimer = 0;
+        }
+
+        for (let i = this.healingTokens.length - 1; i >= 0; i--) {
+            const token = this.healingTokens[i];
+            const playerVisualCenterX = this.player.x + this.player.width / 2;
+            const playerVisualCenterY = this.player.y + this.player.height / 2;
+            const tokenCenterX = token.x + token.width / 2;
+            const tokenCenterY = token.y + token.height / 2;
+
+            const dx = playerVisualCenterX - tokenCenterX;
+            const dy = playerVisualCenterY - tokenCenterY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Radio de recogida similar a las gemas
+            if (distance < 50) {
+                // Curación potente (25 HP)
+                this.player.health = Math.min(this.player.maxHealth, this.player.health + 25);
+                this.createParticles(token.x + token.width / 2, token.y + token.height / 2, '#32CD32'); // Verde para curación
+                this.healingTokens.splice(i, 1);
+                console.log('Token de curación recolectado, salud actual:', this.player.health);
+            }
+        }
+    }
+
     updateParticles(dt) {
         this.particles = this.particles.filter(particle => {
             particle.x += particle.velocityX * dt;
@@ -748,30 +898,69 @@ export class StoryMode {
         });
     }
 
-    spawnEnemy() {
+    spawnEnemy(behindPlayer = false) {
         // Spawn enemigos dentro del área visible de la cámara
-        const spawnX = this.camera.x + this.config.width - 100; // Aparecer en el borde derecho visible
+        let spawnX;
+        if (behindPlayer) {
+            // Aparecer a unos 300px detrás del jugador (lado opuesto a donde mira)
+            spawnX = this.player.x - (this.player.facing * 300);
+            // Asegurarse de que el spawn esté dentro de los límites del mundo
+            spawnX = Math.max(50, Math.min(this.worldWidth - 50, spawnX));
+        } else {
+            spawnX = this.camera.x + this.config.width - 100; // Borde derecho visible estándar
+        }
+        
         const groundY = this.config.height - 50; // Superficie del piso marrón
 
         const enemy = {
             x: spawnX,
-            y: groundY, // Posición inicial en la superficie del piso
-            width: 100,  // Ancho igual al tamaño visual del duende
-            height: 150, // Alto igual al tamaño visual del duende
+            y: groundY,
+            width: 100,
+            height: 150,
             velocityX: 0,
-            velocityY: 0, // Inicializar velocidad Y en 0
+            velocityY: 0,
             color: '#9400D3',
             maxHealth: 3,
             health: 3,
-            isGrounded: true, // Comenzar en el suelo
-            isJumping: false
+            isGrounded: true,
+            isJumping: false,
+            // Propiedades de animación del duende
+            animationState: 'reposo',
+            animationFrame: 0,
+            animationTimer: 0,
+            animationSpeed: 150, // ms entre frames
+            facing: -1 // -1 para izquierda, 1 para derecha
         };
+
+        // Ajustar salud según dificultad actual
+        enemy.maxHealth = Math.floor(3 * this.difficultyMultiplier);
+        enemy.health = enemy.maxHealth;
 
         // Ajustar para que la base del sprite toque el piso
         enemy.y = groundY - enemy.height;
         enemy.velocityY = 0;
 
         this.enemies.push(enemy);
+    }
+
+    spawnHealingToken() {
+        const groundY = this.config.height - 50;
+        const y = groundY - 120 - Math.random() * 80;
+        
+        let tokenX;
+        do {
+            tokenX = this.camera.x + Math.random() * (this.config.width - 40) + 20;
+        } while (Math.abs(tokenX - this.player.x) < 200);
+
+        const token = {
+            x: tokenX,
+            y: y,
+            width: 30,
+            height: 30,
+            color: '#FF0000'
+        };
+        this.healingTokens.push(token);
+        console.log('Token de curación spawneado en X:', tokenX);
     }
 
 
@@ -986,13 +1175,22 @@ export class StoryMode {
         // Dibujar gemas
         for (const gem of this.gems) {
             if (this.tokenImageLoaded && this.tokenImage.complete) {
-                // Dibujar la imagen del token un poco más grande que su caja de colisión
                 this.ctx.drawImage(this.tokenImage, gem.x - 5, gem.y - 5, gem.width + 10, gem.height + 10);
             } else {
                 this.ctx.fillStyle = gem.color;
                 this.ctx.beginPath();
                 this.ctx.arc(gem.x + gem.width / 2, gem.y + gem.height / 2, gem.width / 2, 0, Math.PI * 2);
                 this.ctx.fill();
+            }
+        }
+
+        // Dibujar tokens de curación
+        for (const token of this.healingTokens) {
+            if (this.healingTokenImageLoaded && this.healingTokenImage.complete) {
+                this.ctx.drawImage(this.healingTokenImage, token.x - 5, token.y - 5, token.width + 10, token.height + 10);
+            } else {
+                this.ctx.fillStyle = '#32CD32'; // Verde para fallback
+                this.ctx.fillRect(token.x, token.y, token.width, token.height);
             }
         }
 
@@ -1003,29 +1201,37 @@ export class StoryMode {
                 const duendeWidth = 100;  // Ancho aumentado para mejor proporción
                 const duendeHeight = 150; // Alto proporcional (1.5x el ancho)
 
-                // Determinar si el enemigo debe voltear hacia el jugador
-                // El sprite del duende mira a la izquierda por defecto,
-                // así que volteamos cuando el jugador está a la derecha
-                const enemyFacingRight = this.player.x > enemy.x;
+                // Determinar si el enemigo debe voltear
+                // Según la imagen, parece que el duende mira a la derecha por defecto.
+                // Lo volteamos si necesita mirar a la izquierda (facing === -1)
+                const enemyFacingLeft = enemy.facing === -1;
 
                 this.ctx.save();
 
                 const drawX = enemy.x - duendeWidth / 2;
                 const drawY = enemy.y;
 
-                if (enemyFacingRight) {
-                    // Voltear horizontalmente para mirar a la derecha
+                if (enemyFacingLeft) {
+                    // Voltear horizontalmente para mirar a la izquierda
                     this.ctx.translate(enemy.x, 0);
                     this.ctx.scale(-1, 1);
                     this.ctx.translate(-enemy.x, 0);
                 }
 
+                // Configuración de animación actual
+                const anim = this.duendeSpriteConfig.animations[enemy.animationState];
+                const frameIndex = anim.start + enemy.animationFrame;
+                
+                const col = frameIndex % this.duendeSpriteConfig.framesPerRow;
+                const row = Math.floor(frameIndex / this.duendeSpriteConfig.framesPerRow);
+                
+                const sx = col * this.duendeSpriteConfig.frameWidth;
+                const sy = row * this.duendeSpriteConfig.frameHeight;
+
                 this.ctx.drawImage(
                     this.duendeImage,
-                    drawX,
-                    drawY,
-                    duendeWidth,
-                    duendeHeight
+                    sx, sy, this.duendeSpriteConfig.frameWidth, this.duendeSpriteConfig.frameHeight,
+                    drawX, drawY, duendeWidth, duendeHeight
                 );
 
                 // --- BARRA DE VIDA MEDIEVAL PARA ENEMIGO ---
@@ -1191,9 +1397,11 @@ export class StoryMode {
             this.ctx.fillText('Presiona P para continuar', this.canvas.width / 2, this.canvas.height / 2 + 50);
         }
 
-        // Game over — pantalla medieval
+        // Pantallas de fin de juego
         if (this.gameOver) {
             this.drawMedievalGameOver();
+        } else if (this.victory) {
+            this.drawVictoryScreen();
         }
 
         // HUD con estilo pixelado - barra de vida
@@ -1298,6 +1506,33 @@ export class StoryMode {
             this.ctx.fillText(`${Math.ceil(this.player.health)} / ${this.player.maxHealth}`, barX + width / 2 + 1, barY + height / 2 + 2);
             this.ctx.fillStyle = '#ffffff';
             this.ctx.fillText(`${Math.ceil(this.player.health)} / ${this.player.maxHealth}`, barX + width / 2, barY + height / 2 + 1);
+
+            this.ctx.restore();
+
+            // HUD — Tiempo restante y Dificultad (Centro Superior)
+            this.ctx.save();
+            const remainingTime = Math.max(0, this.targetSurvivalTime - this.player.survivalTime);
+            const mins = Math.floor(remainingTime / 60);
+            const secs = remainingTime % 60;
+            const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+            this.ctx.font = 'bold 28px Georgia, serif';
+            this.ctx.textAlign = 'center';
+            
+            // Sombra del tiempo
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillText(timeStr, this.canvas.width / 2 + 2, 42);
+            // Color del tiempo (cambia a rojo si queda poco)
+            this.ctx.fillStyle = remainingTime < 30 ? '#FF4500' : '#FFD700';
+            this.ctx.fillText(timeStr, this.canvas.width / 2, 40);
+
+            // Nivel de Dificultad / Peligro
+            this.ctx.font = 'italic 16px Georgia, serif';
+            const difficultyLabel = `Nivel de Peligro: ${this.difficultyMultiplier.toFixed(1)}x`;
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillText(difficultyLabel, this.canvas.width / 2 + 1, 66);
+            this.ctx.fillStyle = '#FFA500';
+            this.ctx.fillText(difficultyLabel, this.canvas.width / 2, 65);
 
             this.ctx.restore();
 
@@ -1438,7 +1673,11 @@ export class StoryMode {
         this.ctx.fillText('☠', cx, skullY);
 
         // ── Texto principal ──
-        const fontSize = Math.min(w * 0.055, 42);
+        // Ajustar tamaño de fuente según la longitud de la frase
+        let fontSize = Math.min(w * 0.055, 42);
+        if (this.currentDeathPhrase.length > 40) fontSize *= 0.7; // Reducir si es muy larga
+        else if (this.currentDeathPhrase.length > 25) fontSize *= 0.85;
+
         this.ctx.font = `bold ${fontSize}px Georgia, "Times New Roman", serif`;
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
@@ -1447,12 +1686,12 @@ export class StoryMode {
 
         // Sombra profunda
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-        this.ctx.fillText('HAS MUERTO', cx + 3, textY + 3);
+        this.ctx.fillText(this.currentDeathPhrase, cx + 3, textY + 3);
         // Resplandor dorado exterior
         this.ctx.shadowColor = '#A0801A';
         this.ctx.shadowBlur = 20;
         this.ctx.fillStyle = '#C9A84C';
-        this.ctx.fillText('HAS MUERTO', cx, textY);
+        this.ctx.fillText(this.currentDeathPhrase, cx, textY);
         this.ctx.shadowBlur = 0;
 
         // Subtítulo
@@ -1571,64 +1810,250 @@ export class StoryMode {
         this.ctx.quadraticCurveTo(x, y, x + r, y);
         this.ctx.closePath();
     }
-
     setupMouseControls() {
         this.canvas.addEventListener('mousemove', (e) => {
-            if (!this.gameOver) return;
+            if (!this.gameOver && !this.victory) return;
 
             const rect = this.canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
 
-            // Verificar hover en botones
-            [this.gameOverButtons.yes, this.gameOverButtons.no].forEach(button => {
-                button.hovered = mouseX >= button.x && mouseX <= button.x + button.width &&
-                    mouseY >= button.y && mouseY <= button.y + button.height;
-            });
+            if (this.gameOver) {
+                // Verificar hover en botones de Game Over
+                [this.gameOverButtons.yes, this.gameOverButtons.no].forEach(button => {
+                    button.hovered = mouseX >= button.x && mouseX <= button.x + button.width &&
+                        mouseY >= button.y && mouseY <= button.y + button.height;
+                });
+            } else if (this.victory) {
+                // Verificar hover en botones de Victoria
+                [this.victoryButtons.restart, this.victoryButtons.menu].forEach(button => {
+                    button.hovered = mouseX >= button.x && mouseX <= button.x + button.width &&
+                        mouseY >= button.y && mouseY <= button.y + button.height;
+                });
+            }
         });
 
         this.canvas.addEventListener('click', (e) => {
-            if (!this.gameOver) return;
+            if (!this.gameOver && !this.victory) return;
 
             const rect = this.canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
 
-            // Verificar clic en botón SÍ
-            if (mouseX >= this.gameOverButtons.yes.x && mouseX <= this.gameOverButtons.yes.x + this.gameOverButtons.yes.width &&
-                mouseY >= this.gameOverButtons.yes.y && mouseY <= this.gameOverButtons.yes.y + this.gameOverButtons.yes.height) {
-                this.restartGame();
-            }
+            if (this.gameOver) {
+                // Verificar clic en botón SÍ
+                if (mouseX >= this.gameOverButtons.yes.x && mouseX <= this.gameOverButtons.yes.x + this.gameOverButtons.yes.width &&
+                    mouseY >= this.gameOverButtons.yes.y && mouseY <= this.gameOverButtons.yes.y + this.gameOverButtons.yes.height) {
+                    this.restartGame();
+                }
 
-            // Verificar clic en botón NO
-            if (mouseX >= this.gameOverButtons.no.x && mouseX <= this.gameOverButtons.no.x + this.gameOverButtons.no.width &&
-                mouseY >= this.gameOverButtons.no.y && mouseY <= this.gameOverButtons.no.y + this.gameOverButtons.no.height) {
-                this.returnToMenu();
+                // Verificar clic en botón NO
+                if (mouseX >= this.gameOverButtons.no.x && mouseX <= this.gameOverButtons.no.x + this.gameOverButtons.no.width &&
+                    mouseY >= this.gameOverButtons.no.y && mouseY <= this.gameOverButtons.no.y + this.gameOverButtons.no.height) {
+                    this.returnToMenu();
+                }
+            } else if (this.victory) {
+                // Verificar clic en botón REINICIAR
+                if (mouseX >= this.victoryButtons.restart.x && mouseX <= this.victoryButtons.restart.x + this.victoryButtons.restart.width &&
+                    mouseY >= this.victoryButtons.restart.y && mouseY <= this.victoryButtons.restart.y + this.victoryButtons.restart.height) {
+                    this.restartGame();
+                }
+
+                // Verificar clic en botón MENÚ
+                if (mouseX >= this.victoryButtons.menu.x && mouseX <= this.victoryButtons.menu.x + this.victoryButtons.menu.width &&
+                    mouseY >= this.victoryButtons.menu.y && mouseY <= this.victoryButtons.menu.y + this.victoryButtons.menu.height) {
+                    this.returnToMenu();
+                }
             }
         });
     }
 
     restartGame() {
-        // Reiniciar variables del juego
+        console.log('Reiniciando el juego desde cero...');
+        // Reiniciar estados principales
         this.gameOver = false;
+        this.victory = false;
+        this.paused = false;
         this.score = 0;
+        
+        // Reiniciar cronómetro y dificultad
+        this.levelStartTime = Date.now();
+        this.player.survivalTime = 0;
+        this.difficultyMultiplier = 1.0;
+
+        // Reiniciar jugador
         this.player.health = this.player.maxHealth;
         this.player.displayHealth = this.player.maxHealth;
         this.player.x = 200;
         this.player.y = this.config.height - 200;
         this.player.velocityX = 0;
         this.player.velocityY = 0;
+        this.player.enemiesDefeated = 0;
+        this.player.gems = 0;
+
+        this.playerStillTimer = 0;
+        this.lastPlayerX = this.player.x;
+
+        // Limpiar arrays
         this.enemies = [];
         this.gems = [];
+        this.healingTokens = [];
         this.projectiles = [];
         this.particles = [];
+
+        // Reiniciar timers
         this.enemySpawnTimer = 0;
         this.gemSpawnTimer = 0;
+        this.healingTokenSpawnTimer = 0;
+        
+        console.log('Juego reiniciado con éxito.');
     }
 
     returnToMenu() {
         // Detener el juego y volver al menú principal
         this.gameOver = true;
         window.location.reload(); // O usar un método más elegante si existe
+    }
+
+    drawVictoryScreen() {
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
+
+        // Fondo dorado suave con resplandor
+        const grad = this.ctx.createRadialGradient(cx, cy, h * 0.2, cx, cy, h * 0.9);
+        grad.addColorStop(0, 'rgba(60, 50, 20, 0.85)');
+        grad.addColorStop(1, 'rgba(20, 15, 5, 0.95)');
+        this.ctx.fillStyle = grad;
+        this.ctx.fillRect(0, 0, w, h);
+
+        // Texto de Victoria
+        this.ctx.font = 'bold 60px Georgia, serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        
+        this.ctx.shadowColor = '#FFD700';
+        this.ctx.shadowBlur = 20;
+        this.ctx.fillStyle = '#FFF5DC';
+        this.ctx.fillText('¡VICTORIA!', cx, cy - 50);
+        this.ctx.shadowBlur = 0;
+
+        this.ctx.font = '24px Georgia, serif';
+        this.ctx.fillStyle = '#B8976A';
+        this.ctx.fillText('Has sobrevivido al asalto', cx, cy + 20);
+        
+        this.ctx.font = '18px Georgia, serif';
+        this.ctx.fillText(`Puntuación Final: ${this.score}`, cx, cy + 60);
+
+        // Botones de victoria
+        const btnW = 160;
+        const btnH = 50;
+        const spacing = btnW * 0.6;
+        const btnY = cy + 100;
+
+        // Actualizar posiciones de botones de victoria
+        this.victoryButtons.restart.x = cx - spacing - btnW / 2;
+        this.victoryButtons.restart.y = btnY;
+        this.victoryButtons.restart.width = btnW;
+        this.victoryButtons.restart.height = btnH;
+        
+        this.victoryButtons.menu.x = cx + spacing - btnW / 2;
+        this.victoryButtons.menu.y = btnY;
+        this.victoryButtons.menu.width = btnW;
+        this.victoryButtons.menu.height = btnH;
+
+        [this.victoryButtons.restart, this.victoryButtons.menu].forEach(button => {
+            const bx = button.x;
+            const by = button.y;
+
+            // Resplandor hover
+            if (button.hovered) {
+                this.ctx.shadowColor = '#D4A845';
+                this.ctx.shadowBlur = 18;
+            }
+
+            // Borde exterior oscuro
+            this.ctx.fillStyle = '#1A1005';
+            this.roundRect(bx - 4, by - 4, btnW + 8, btnH + 8, 6);
+            this.ctx.fill();
+
+            // Fondo principal estilo medieval
+            const btnGrad = this.ctx.createLinearGradient(bx, by, bx, by + btnH);
+            if (button.hovered) {
+                btnGrad.addColorStop(0, '#C9A84C');
+                btnGrad.addColorStop(1, '#6B4F10');
+            } else {
+                btnGrad.addColorStop(0, '#8B6914');
+                btnGrad.addColorStop(1, '#3D2E0A');
+            }
+            this.ctx.fillStyle = btnGrad;
+            this.roundRect(bx, by, btnW, btnH, 5);
+            this.ctx.fill();
+
+            this.ctx.shadowBlur = 0;
+
+            // Texto del botón
+            this.ctx.fillStyle = button.hovered ? '#FFF5DC' : '#FFE5C2';
+            this.ctx.font = 'bold 18px Georgia, serif';
+            this.ctx.fillText(button.text, bx + btnW / 2, by + btnH / 2);
+        });
+    }
+
+    setupResizeHandler() {
+        window.addEventListener('resize', () => {
+            this.config.width = window.innerWidth;
+            this.config.height = window.innerHeight;
+            this.canvas.width = this.config.width;
+            this.canvas.height = this.config.height;
+
+            // Actualizar cámara
+            this.camera.width = this.config.width;
+            this.camera.height = this.config.height;
+
+            console.log('Canvas redimensionado:', this.config.width, 'x', this.config.height);
+        });
+    }
+
+    setupTouchControls() {
+        // Mostrar controles móviles si es un dispositivo táctil
+        const mobileControls = document.getElementById('mobile-controls');
+        if (!mobileControls) return;
+
+        // Detectar si es móvil (simplificado)
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        if (isTouchDevice) {
+            mobileControls.classList.remove('hidden');
+        }
+
+        const buttons = {
+            'btn-left': 'left',
+            'btn-right': 'right',
+            'btn-jump': 'jump',
+            'btn-attack': 'attack'
+        };
+
+        Object.entries(buttons).forEach(([id, key]) => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.touchKeys[key] = true;
+                });
+                btn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.touchKeys[key] = false;
+                });
+            }
+        });
+
+        // Botón de pausa especial
+        const pauseBtn = document.getElementById('btn-pause');
+        if (pauseBtn) {
+            pauseBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.paused = !this.paused;
+            });
+        }
     }
 }

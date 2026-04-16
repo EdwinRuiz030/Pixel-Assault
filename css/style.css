@@ -365,8 +365,8 @@ button:not(.button-13):hover {
 }
 
 #controls h3 {
-    font-size: 2rem;
-    margin: 20px 0 10px 0;
+    font-size: 1.8rem;
+    margin: 15px 0 10px 0;
     color: #ffd700;
     text-shadow: 0 0 10px #ffd700;
 }
@@ -377,3 +377,128 @@ button:not(.button-13):hover {
     color: #0ff;
     text-shadow: 0 0 5px #0ff;
 }
+
+.controls-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    width: 90%;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.control-section {
+    flex: 1;
+    min-width: 300px;
+    background: rgba(139, 69, 19, 0.2);
+    padding: 15px;
+    border: 1px solid #8B4513;
+    border-radius: 8px;
+}
+
+.control-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.control-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+    font-size: 1.1rem;
+}
+
+.control-item span:first-child {
+    color: #ffd700;
+    font-weight: bold;
+}
+
+.control-item span:last-child {
+    color: #0ff;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+.showdown-players {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.player-controls {
+    flex: 1;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
+}
+
+.player-controls.p1 { border-left: 3px solid #4169E1; }
+.player-controls.p2 { border-left: 3px solid #DC143C; }
+
+/* Controles móviles */
+#mobile-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.movement-controls, .action-controls {
+    display: flex;
+    gap: 10px;
+    pointer-events: auto;
+}
+
+.joy-btn {
+    width: 60px;
+    height: 60px;
+    background: rgba(139, 69, 19, 0.6);
+    border: 2px solid #ffd700;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 4px 0 #3d220b;
+}
+
+.joy-btn:active {
+    transform: translateY(4px);
+    box-shadow: none;
+    background: rgba(139, 69, 19, 0.9);
+}
+
+#btn-pause {
+    width: 45px;
+    height: 45px;
+    font-size: 18px;
+    position: fixed;
+    top: 20px;
+    right: 20px;
+}
+
+/* Responsividad general */
+@media (max-width: 768px) {
+    h1 { font-size: 2.5rem; }
+    h2 { font-size: 2rem; }
+    .control-item { font-size: 0.9rem; }
+    .control-section { min-width: 100%; }
+    #mobile-controls:not(.hidden) { display: flex; }
+}
+
+/* Ocultar botones móviles si se tiene ratón (posible escritorio) */
+@media (hover: hover) and (pointer: fine) {
+    #mobile-controls {
+        display: none !important;
+    }
+}
