@@ -280,6 +280,9 @@ export class StoryMode {
         this.levelStartTime = Date.now();
         this.lastFrameTime = Date.now();
 
+        // Inicializar Audio de Muerte
+        this.deathAudio = new Audio('songs/Death Is Just Another Path.mp3');
+
         // Inicialización
         if (!this.canvas || !this.ctx) {
             console.error('No se puede inicializar el juego - canvas o contexto no disponible');
@@ -651,6 +654,11 @@ export class StoryMode {
             if (!this.gameOver) {
                 this.gameOver = true;
                 this.currentDeathPhrase = this.deathPhrases[Math.floor(Math.random() * this.deathPhrases.length)].toUpperCase();
+                
+                // Reproducir audio de muerte
+                if (this.deathAudio) {
+                    this.deathAudio.play().catch(e => console.log('Error reproduciendo audio de muerte:', e));
+                }
             }
         }
     }
@@ -1876,6 +1884,12 @@ export class StoryMode {
         this.paused = false;
         this.score = 0;
         
+        // Detener audio de muerte
+        if (this.deathAudio) {
+            this.deathAudio.pause();
+            this.deathAudio.currentTime = 0;
+        }
+        
         // Reiniciar cronómetro y dificultad
         this.levelStartTime = Date.now();
         this.player.survivalTime = 0;
@@ -1910,6 +1924,11 @@ export class StoryMode {
     }
 
     returnToMenu() {
+        // Detener audio de muerte
+        if (this.deathAudio) {
+            this.deathAudio.pause();
+        }
+
         // Detener el juego y volver al menú principal
         this.gameOver = true;
         window.location.reload(); // O usar un método más elegante si existe
