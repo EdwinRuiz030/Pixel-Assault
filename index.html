@@ -28,8 +28,8 @@
                     <span class="button-13-background"></span>
                     <span class="button-13-border"></span>
                 </button>
-                <button id="showdown-btn" class="button-13" role="button">
-                    <span class="text">SHOWDOWN</span>
+                <button id="supervivencia-btn" class="button-13" role="button">
+                    <span class="text">SUPERVIVENCIA</span>
                     <span class="button-13-background"></span>
                     <span class="button-13-border"></span>
                 </button>
@@ -57,23 +57,8 @@
             </div>
         </div>
         
-        <div id="showdown" class="screen hidden">
-            <div id="showdown-hud">
-                <div class="player-info" id="p1-info">
-                    <div>P1</div>
-                    <div>❤️ <span id="p1-health">100</span></div>
-                    <div>💎 <span id="p1-gems">0</span></div>
-                </div>
-                <div class="timer">
-                    <div>⏱️ ∞</div>
-                </div>
-                <div class="player-info" id="p2-info">
-                    <div>P2</div>
-                    <div>❤️ <span id="p2-health">100</span></div>
-                    <div>💎 <span id="p2-gems">0</span></div>
-                </div>
-            </div>
-            <canvas id="showdown-canvas"></canvas>
+        <div id="supervivencia" class="screen hidden">
+            <canvas id="supervivencia-canvas"></canvas>
         </div>
         
         <div id="controls" class="screen hidden">
@@ -90,20 +75,12 @@
                 </div>
                 
                 <div class="control-section">
-                    <h3>Modo Showdown</h3>
-                    <div class="showdown-players">
-                        <div class="player-controls p1">
-                            <h4>P1 (Azul)</h4>
-                            <div class="control-item"><span>Mover</span><span>A D</span></div>
-                            <div class="control-item"><span>Saltar</span><span>W / ESPACIO</span></div>
-                            <div class="control-item"><span>Atacar</span><span>F</span></div>
-                        </div>
-                        <div class="player-controls p2">
-                            <h4>P2 (Rojo)</h4>
-                            <div class="control-item"><span>Mover</span><span>⬅️ ➡️</span></div>
-                            <div class="control-item"><span>Saltar</span><span>⬆️ / ENTER</span></div>
-                            <div class="control-item"><span>Atacar</span><span>SHIFT</span></div>
-                        </div>
+                    <h3>Modo Supervivencia</h3>
+                    <div class="control-list">
+                        <div class="control-item"><span>Mover</span><span>⬅️ ➡️ / A D</span></div>
+                        <div class="control-item"><span>Saltar</span><span>⬆️ / W / ESPACIO</span></div>
+                        <div class="control-item"><span>Atacar</span><span>F</span></div>
+                        <div class="control-item"><span>Pausar</span><span>P / ESC</span></div>
                     </div>
                 </div>
             </div>

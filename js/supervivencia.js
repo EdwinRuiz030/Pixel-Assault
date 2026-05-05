@@ -1,7 +1,7 @@
 // Clase para el Modo Historia
-export class StoryMode {
+export class SupervivenciaGame {
     constructor() {
-        console.log('=== INICIO CONSTRUCTOR STORY MODE ===');
+        console.log('=== INICIO CONSTRUCTOR SUPERVIVENCIA GAME ===');
 
         // Configuración del juego
         this.config = {
@@ -13,9 +13,9 @@ export class StoryMode {
         };
 
         // Canvas 2D
-        this.canvas = document.getElementById('game-canvas');
+        this.canvas = document.getElementById('supervivencia-canvas');
         if (!this.canvas) {
-            console.error('Canvas game-canvas no encontrado');
+            console.error('Canvas supervivencia-canvas no encontrado');
             return;
         }
         this.ctx = this.canvas.getContext('2d');
@@ -24,35 +24,7 @@ export class StoryMode {
             return;
         }
 
-        // Video de fondo para nivel 1
-        this.castleVideo = document.getElementById('castle-background');
-        if (this.castleVideo) {
-            this.castleVideo.style.display = 'none'; // Ocultar por defecto
-            // Forzar reproducción del video
-            this.castleVideo.play().catch(e => console.log('Error reproduciendo video:', e));
-        }
 
-        // Intentar usar el GIF convirtiéndolo a video con canvas
-        this.castleGif = new Image();
-        this.castleGifLoaded = false;
-        // Eliminamos la animación automática para que solo se mueva con la cámara
-
-        this.castleGif.onload = () => {
-            this.castleGifLoaded = true;
-            console.log('GIF del castillo animado cargado correctamente - Dimensiones:', this.castleGif.width, 'x', this.castleGif.height);
-        };
-        this.castleGif.onerror = () => {
-            console.error('Error cargando GIF del castillo animado');
-            this.castleGifLoaded = false;
-        };
-        this.castleGif.src = 'img/castillo animado.gif';
-
-        // Restaurar capas de paralaje para mayor profundidad
-        this.parallaxLayers = [
-            { speed: 0.05, alpha: 0.3 }, // Capa más lejana
-            { speed: 0.1, alpha: 0.4 }, // Capa media
-            { speed: 0.15, alpha: 0.5 }  // Capa cercana
-        ];
 
         // Configurar dimensiones del canvas
         this.canvas.width = this.config.width;
@@ -116,6 +88,7 @@ export class StoryMode {
             isGrounded: false,
             facing: 1,
             enemiesDefeated: 0,
+            survivalTime: 0,
             lastDamageTime: 0,           // Tiempo del último daño recibido
             invincibilityDuration: 1000  // 1 segundo de invencibilidad tras recibir daño
         };
@@ -152,14 +125,20 @@ export class StoryMode {
         ];
         this.currentDeathPhrase = "";
 
-
+        // Tokens de Curación
+        this.healingTokens = [];
+        this.maxHealingTokens = 3;
+        this.healingTokenSpawnTimer = 0;
+        this.healingTokenSpawnInterval = 60000; // 1 minuto (60,000 ms)
         
         // Estado de teclas táctiles
         this.touchKeys = {};
         this.setupResizeHandler();
 
-        // Estado de Victoria
+        // Estado de Victoria y Dificultad
         this.victory = false;
+        this.targetSurvivalTime = 180; // 3 minutos en segundos
+        this.difficultyMultiplier = 1.0;
 
         // Sistema Anti-Camping
         this.playerStillTimer = 0;
@@ -232,17 +211,7 @@ export class StoryMode {
             }
         };
 
-        // Imagen del piso escenario
-        this.floorImage = new Image();
-        this.floorImageLoaded = false;
-        this.floorImage.onload = () => { this.floorImageLoaded = true; };
-        this.floorImage.src = 'img/piso escenario.png';
 
-        // Imagen de las plataformas sprite sheet (cuadros 0 al 5)
-        this.platformsImage = new Image();
-        this.platformsImageLoaded = false;
-        this.platformsImage.onload = () => { this.platformsImageLoaded = true; };
-        this.platformsImage.src = 'img/plataforma 1.png';
 
         this.swordImage = new Image();
         this.swordImageLoaded = false;
@@ -261,7 +230,11 @@ export class StoryMode {
         this.tokenImage.onload = () => { this.tokenImageLoaded = true; };
         this.tokenImage.src = 'img/token.png';
 
-
+        // Imagen del token de curación
+        this.healingTokenImage = new Image();
+        this.healingTokenImageLoaded = false;
+        this.healingTokenImage.onload = () => { this.healingTokenImageLoaded = true; };
+        this.healingTokenImage.src = 'img/curacion.png';
 
 
 
@@ -284,7 +257,7 @@ export class StoryMode {
         // Eliminado showLevelIntro() y updateHUD() para empezar directamente con acción
         this.gameLoop();
 
-        console.log('Constructor StoryMode completado - Canvas listo');
+        console.log('Constructor SupervivenciaGame completado - Canvas listo');
     }
 
     generatePlatforms() {
@@ -608,7 +581,12 @@ export class StoryMode {
         // Actualizar partículas
         this.updateParticles(dt);
 
+        // Actualizar tiempo de supervivencia
+        this.player.survivalTime = Math.floor((Date.now() - this.levelStartTime) / 1000);
 
+        // Actualizar multiplicador de dificultad (cada minuto aumenta 0.5x)
+        const minutesElapsed = Math.floor(this.player.survivalTime / 60);
+        this.difficultyMultiplier = 1.0 + (minutesElapsed * 0.5);
 
         // Lógica Anti-Camping
         const distanceMoved = Math.abs(this.player.x - this.lastPlayerX);
@@ -624,7 +602,14 @@ export class StoryMode {
             this.lastPlayerX = this.player.x;
         }
 
+        // Verificar condición de victoria
+        if (this.player.survivalTime >= this.targetSurvivalTime) {
+            this.victory = true;
+            this.paused = true; // Pausar juego al ganar
+        }
 
+        // Actualizar tokens de curación
+        this.updateHealingTokens(deltaTime);
 
         // Verificar si el jugador sigue vivo
         if (this.player.health <= 0) {
@@ -669,8 +654,9 @@ export class StoryMode {
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance > 0) {
-                // Velocidad base de 1.5
-                const currentEnemySpeed = 1.5;
+                // Velocidad base de 1.5 escalada por dificultad
+                const baseEnemySpeed = 1.5;
+                const currentEnemySpeed = baseEnemySpeed * this.difficultyMultiplier;
                 const moveX = (dx / distance) * currentEnemySpeed * dt;
                 enemy.x += moveX;
 
@@ -760,8 +746,9 @@ export class StoryMode {
             if (this.checkCollision(enemy, this.player)) {
                 const now = Date.now();
                 if (now - this.player.lastDamageTime > this.player.invincibilityDuration) {
-                    // Daño base de 10
-                    const scaledDamage = 10;
+                    // Daño base de 10 escalado por la dificultad
+                    const baseDamage = 10;
+                    const scaledDamage = baseDamage * this.difficultyMultiplier;
                     
                     this.player.health -= scaledDamage;
                     this.player.lastDamageTime = now;
@@ -915,8 +902,8 @@ export class StoryMode {
             facing: -1 // -1 para izquierda, 1 para derecha
         };
 
-        // Salud fija para modo historia
-        enemy.maxHealth = 3;
+        // Ajustar salud según dificultad actual
+        enemy.maxHealth = Math.floor(3 * this.difficultyMultiplier);
         enemy.health = enemy.maxHealth;
 
         // Ajustar para que la base del sprite toque el piso
@@ -1056,48 +1043,9 @@ export class StoryMode {
         // Obtener entorno del escenario
         const environment = this.environment;
 
-        // Manejar fondo - restaurar paralaje sincronizado
-        if (this.castleGif && this.castleGif.complete) {
-            // Ocultar video si existe
-            if (this.castleVideo) {
-                this.castleVideo.style.display = 'none';
-            }
-
-            // Limpiar canvas con color del cielo
-            this.ctx.fillStyle = environment.skyColor;
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-            // Escalar el GIF para que cubra todo el alto de la pantalla, evitando el hueco azul arriba
-            const gifHeight = this.canvas.height;
-            const bgScale = gifHeight / this.castleGif.height;
-            const gifWidth = this.castleGif.width * bgScale;
-            const gifY = 0; // Pegado al techo
-
-            // Dibujar múltiples capas de paralaje para mayor profundidad
-            for (const layer of this.parallaxLayers) {
-                const cameraOffset = this.camera.x * layer.speed;
-                const repetitions = Math.ceil((this.canvas.width + gifWidth) / gifWidth) + 1;
-
-                this.ctx.globalAlpha = layer.alpha;
-
-                // Dibujar múltiples copias para crear efecto infinito
-                for (let i = 0; i < repetitions; i++) {
-                    const gifX = (i * gifWidth) - (cameraOffset % gifWidth);
-                    this.ctx.drawImage(this.castleGif, gifX, gifY, gifWidth, gifHeight);
-                }
-            }
-
-            this.ctx.globalAlpha = 1.0;
-        } else {
-            // Ocultar video y GIF si no están disponibles
-            if (this.castleVideo) {
-                this.castleVideo.style.display = 'none';
-            }
-
-            // Limpiar canvas con color del cielo del escenario
-            this.ctx.fillStyle = environment.skyColor;
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        }
+        // Limpiar canvas con color del cielo
+        this.ctx.fillStyle = environment.skyColor;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         // Guardar estado del contexto para aplicar cámara
         this.ctx.save();
@@ -1107,52 +1055,8 @@ export class StoryMode {
 
         // Dibujar plataformas
         for (const platform of this.platforms) {
-            if (platform.isFloor && this.floorImageLoaded && this.floorImage.complete) {
-                this.ctx.save();
-                const imgWidth = this.floorImage.width || 1;
-                const imgHeight = this.floorImage.height || 1;
-
-                // Si la imagen tiene mucha transparencia y se dibuja bajito, vamos a definir 
-                // una altura específica forzada y alinear la parte *inferior* de la textura con el borde inferior 
-                // de la pantalla para asegurarnos de que quede visible dentro del canvas.
-                const drawHeight = 200; // Puedes ajustar qué tan alto quieres que se vea el pasto/tierra visualmente
-                // Proporción correcta para que no se deforme
-                const scaleX = drawHeight / imgHeight;
-                const drawWidth = imgWidth * scaleX;
-
-                // Alineamos el borde INFERIOR de la imagen con el borde INFERIOR del canvas
-                // Así nos aseguramos de que no se está dibujando por debajo de la pantalla invisible
-                const drawY = this.canvas.height - drawHeight;
-
-                for (let i = platform.x; i < platform.x + platform.width; i += drawWidth) {
-                    this.ctx.drawImage(this.floorImage, i, drawY, drawWidth, drawHeight);
-                }
-
-                // Dibujamos la cajita de colisión base invisible (para debug) transparente
-                // o no la dibujamos para que sólo se vea el piso lindo
-                // this.ctx.fillStyle = 'rgba(139, 69, 19, 0)'; 
-                // this.ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
-
-                this.ctx.restore();
-            } else if (!platform.isFloor && this.platformsImageLoaded && this.platformsImage.complete) {
-                // Dibujar plataforma flotante con la imagen única
-
-                // Mantener la proporción original del pixel art para que no se vea aplastado
-                const drawHeight = platform.width * (this.platformsImage.height / this.platformsImage.width);
-
-                // Offset vertical para que la colisión invisible (pies) encaje mejor con el dibujo
-                // Ajusta este numerito si aún ves que flota (mayor = imagen más arriba)
-                const offsetY = 30;
-
-                this.ctx.drawImage(
-                    this.platformsImage,
-                    platform.x, platform.y - offsetY, platform.width, drawHeight
-                );
-            } else {
-                // Fallback a color sólido si la imagen no ha cargado o es otra plataforma de tipo desconocido
-                this.ctx.fillStyle = platform.color;
-                this.ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
-            }
+            this.ctx.fillStyle = platform.color;
+            this.ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
         }
 
         // Dibujar gemas
@@ -1167,7 +1071,15 @@ export class StoryMode {
             }
         }
 
-
+        // Dibujar tokens de curación
+        for (const token of this.healingTokens) {
+            if (this.healingTokenImageLoaded && this.healingTokenImage.complete) {
+                this.ctx.drawImage(this.healingTokenImage, token.x - 5, token.y - 5, token.width + 10, token.height + 10);
+            } else {
+                this.ctx.fillStyle = '#32CD32'; // Verde para fallback
+                this.ctx.fillRect(token.x, token.y, token.width, token.height);
+            }
+        }
 
         // Dibujar enemigos con diseño de duende
         for (const enemy of this.enemies) {
@@ -1487,7 +1399,32 @@ export class StoryMode {
 
             this.ctx.restore();
 
+            // HUD — Tiempo restante y Dificultad (Centro Superior)
+            this.ctx.save();
+            const remainingTime = Math.max(0, this.targetSurvivalTime - this.player.survivalTime);
+            const mins = Math.floor(remainingTime / 60);
+            const secs = remainingTime % 60;
+            const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
+            this.ctx.font = 'bold 28px Georgia, serif';
+            this.ctx.textAlign = 'center';
+            
+            // Sombra del tiempo
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillText(timeStr, this.canvas.width / 2 + 2, 42);
+            // Color del tiempo (cambia a rojo si queda poco)
+            this.ctx.fillStyle = remainingTime < 30 ? '#FF4500' : '#FFD700';
+            this.ctx.fillText(timeStr, this.canvas.width / 2, 40);
+
+            // Nivel de Dificultad / Peligro
+            this.ctx.font = 'italic 16px Georgia, serif';
+            const difficultyLabel = `Nivel de Peligro: ${this.difficultyMultiplier.toFixed(1)}x`;
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillText(difficultyLabel, this.canvas.width / 2 + 1, 66);
+            this.ctx.fillStyle = '#FFA500';
+            this.ctx.fillText(difficultyLabel, this.canvas.width / 2, 65);
+
+            this.ctx.restore();
 
             // HUD — Score y Tokens
             this.ctx.save();
@@ -1835,8 +1772,10 @@ export class StoryMode {
             this.deathAudio.currentTime = 0;
         }
         
-        // Reiniciar cronómetro
+        // Reiniciar cronómetro y dificultad
         this.levelStartTime = Date.now();
+        this.player.survivalTime = 0;
+        this.difficultyMultiplier = 1.0;
 
         // Reiniciar jugador
         this.player.health = this.player.maxHealth;
@@ -1854,12 +1793,14 @@ export class StoryMode {
         // Limpiar arrays
         this.enemies = [];
         this.gems = [];
+        this.healingTokens = [];
         this.projectiles = [];
         this.particles = [];
 
         // Reiniciar timers
         this.enemySpawnTimer = 0;
         this.gemSpawnTimer = 0;
+        this.healingTokenSpawnTimer = 0;
         
         console.log('Juego reiniciado con éxito.');
     }

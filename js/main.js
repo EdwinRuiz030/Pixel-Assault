@@ -1,5 +1,5 @@
 import { Game } from './game.js';
-import { ShowdownGame } from './showdown.js';
+import { SupervivenciaGame } from './supervivencia.js';
 import { StoryMode } from './story.js';
 
 // Manejador de pantallas
@@ -7,13 +7,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Elementos del DOM
     const menuScreen = document.getElementById('menu');
     const gameScreen = document.getElementById('game');
-    const showdownScreen = document.getElementById('showdown');
+    const supervivenciaScreen = document.getElementById('supervivencia');
     const controlsScreen = document.getElementById('controls');
     const gameOverScreen = document.getElementById('game-over');
     
     // Botones
     const startBtn = document.getElementById('start-btn');
-    const showdownBtn = document.getElementById('showdown-btn');
+    const supervivenciaBtn = document.getElementById('supervivencia-btn');
     const controlsBtn = document.getElementById('controls-btn');
     const backToMenuBtn = document.getElementById('back-to-menu');
     const playAgainBtn = document.getElementById('play-again');
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Inicialización del juego
     let game;
-    let showdownGame;
+    let supervivenciaGame;
     let storyMode;
     
     // Música del menú
@@ -76,14 +76,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 100);
         }
         
-        // Inicializar el juego Showdown cuando se muestra esa pantalla
-        if (screen === 'showdown') {
-            // Si el juego showdown ya existe, reiniciarlo
-            if (showdownGame) {
-                showdownGame.stop();
+        // Inicializar el juego Supervivencia cuando se muestra esa pantalla
+        if (screen === 'supervivencia') {
+            // Si el juego ya existe, reiniciarlo
+            if (supervivenciaGame) {
+                supervivenciaGame.stop();
             }
-            // Crear nueva instancia del juego showdown
-            showdownGame = new ShowdownGame();
+            // Crear nueva instancia del juego
+            supervivenciaGame = new SupervivenciaGame();
+            if (supervivenciaGame.canvas && supervivenciaGame.ctx) {
+                supervivenciaGame.start();
+            }
         }
     }
     
@@ -124,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Manejadores de eventos
     startBtn.addEventListener('click', () => showScreen('game'));
-    showdownBtn.addEventListener('click', showComingSoon);
+    supervivenciaBtn.addEventListener('click', () => showScreen('supervivencia'));
     controlsBtn.addEventListener('click', () => showScreen('controls'));
     backToMenuBtn.addEventListener('click', () => showScreen('menu'));
     playAgainBtn.addEventListener('click', () => showScreen('game'));
