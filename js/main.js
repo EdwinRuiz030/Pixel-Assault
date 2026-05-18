@@ -19,6 +19,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const playAgainBtn = document.getElementById('play-again');
     const mainMenuBtn = document.getElementById('main-menu');
     
+    // Botones del menú de pausa
+    const pauseMenuScreen = document.getElementById('pause-menu');
+    const resumeBtn = document.getElementById('resume-btn');
+    const settingsBtn = document.getElementById('settings-btn');
+    const pauseMainMenuBtn = document.getElementById('pause-main-menu-btn');
+    
     // Inicialización del juego
     let game;
     let supervivenciaGame;
@@ -133,9 +139,27 @@ document.addEventListener('DOMContentLoaded', () => {
     playAgainBtn.addEventListener('click', () => showScreen('game'));
     mainMenuBtn.addEventListener('click', () => showScreen('menu'));
     
+    // Listeners del menú de pausa
+    resumeBtn.addEventListener('click', () => {
+        if (storyMode && storyMode.paused) {
+            storyMode.paused = false;
+        }
+        if (supervivenciaGame && supervivenciaGame.paused) {
+            supervivenciaGame.paused = false;
+        }
+        pauseMenuScreen.classList.add('hidden');
+    });
     
-    // Quitamos el showScreen('menu') automático aquí, 
-    // ahora se maneja al hacer clic en el splash-screen
+    settingsBtn.addEventListener('click', () => {
+        showComingSoon();
+    });
+    
+    pauseMainMenuBtn.addEventListener('click', () => {
+        if (storyMode) storyMode.stop();
+        if (supervivenciaGame) supervivenciaGame.stop();
+        pauseMenuScreen.classList.add('hidden');
+        showScreen('menu');
+    });
     
     // Intentar reproducir música en la primera interacción (respaldo)
     document.addEventListener('click', startMenuMusic, { once: true });

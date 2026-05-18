@@ -96,6 +96,9 @@ export class SupervivenciaGame {
         // Plataformas (escenario fijo)
         this.platforms = this.generatePlatforms();
 
+        // Árboles (escenario de fondo)
+        this.trees = this.generateTrees();
+
 
 
         // Enemigos
@@ -130,7 +133,7 @@ export class SupervivenciaGame {
         this.maxHealingTokens = 3;
         this.healingTokenSpawnTimer = 0;
         this.healingTokenSpawnInterval = 60000; // 1 minuto (60,000 ms)
-        
+
         // Estado de teclas táctiles
         this.touchKeys = {};
         this.setupResizeHandler();
@@ -236,6 +239,12 @@ export class SupervivenciaGame {
         this.healingTokenImage.onload = () => { this.healingTokenImageLoaded = true; };
         this.healingTokenImage.src = 'img/curacion.png';
 
+        // Imagen del árbol
+        this.treeImage = new Image();
+        this.treeImageLoaded = false;
+        this.treeImage.onload = () => { this.treeImageLoaded = true; };
+        this.treeImage.src = 'img/arbol.png';
+
 
 
         // Estado del nivel
@@ -279,76 +288,76 @@ export class SupervivenciaGame {
 
         const floatingPlatforms = [
             // === ZONA 1: Escalera ascendente (x: 300-1100) ===
-            { x: 350,  y: groundY - 60,  width: 150, height: 20 },
-            { x: 580,  y: groundY - 100, width: 120, height: 20 },
-            { x: 820,  y: groundY - 135, width: 100, height: 20 },
-            { x: 700,  y: groundY - 210, width: 90,  height: 20 },
+            { x: 350, y: groundY - 60, width: 150, height: 20 },
+            { x: 580, y: groundY - 100, width: 120, height: 20 },
+            { x: 820, y: groundY - 135, width: 100, height: 20 },
+            { x: 700, y: groundY - 210, width: 90, height: 20 },
 
             // === ZONA 2: Plataformas bajas y anchas (x: 1200-1900) ===
-            { x: 1200, y: groundY - 70,  width: 180, height: 20 },
-            { x: 1500, y: groundY - 80,  width: 160, height: 20 },
-            { x: 1750, y: groundY - 65,  width: 170, height: 20 },
+            { x: 1200, y: groundY - 70, width: 180, height: 20 },
+            { x: 1500, y: groundY - 80, width: 160, height: 20 },
+            { x: 1750, y: groundY - 65, width: 170, height: 20 },
 
             // === ZONA 3: Zigzag vertical (x: 2000-2800) ===
             { x: 2050, y: groundY - 130, width: 100, height: 20 },
-            { x: 2250, y: groundY - 70,  width: 110, height: 20 },
-            { x: 2450, y: groundY - 120, width: 95,  height: 20 },
-            { x: 2650, y: groundY - 60,  width: 130, height: 20 },
-            { x: 2350, y: groundY - 200, width: 85,  height: 20 },
+            { x: 2250, y: groundY - 70, width: 110, height: 20 },
+            { x: 2450, y: groundY - 120, width: 95, height: 20 },
+            { x: 2650, y: groundY - 60, width: 130, height: 20 },
+            { x: 2350, y: groundY - 200, width: 85, height: 20 },
 
             // === ZONA 4: Torre con escalones (x: 2900-3500) ===
-            { x: 2950, y: groundY - 80,  width: 140, height: 20 },
+            { x: 2950, y: groundY - 80, width: 140, height: 20 },
             { x: 3100, y: groundY - 140, width: 110, height: 20 },
             { x: 3050, y: groundY - 205, width: 100, height: 20 },
-            { x: 3350, y: groundY - 90,  width: 120, height: 20 },
+            { x: 3350, y: groundY - 90, width: 120, height: 20 },
 
             // === ZONA 5: Plataformas gemelas (x: 3600-4300) ===
             { x: 3650, y: groundY - 100, width: 100, height: 20 },
             { x: 3850, y: groundY - 100, width: 100, height: 20 },
             { x: 3750, y: groundY - 190, width: 130, height: 20 },
-            { x: 4100, y: groundY - 75,  width: 150, height: 20 },
+            { x: 4100, y: groundY - 75, width: 150, height: 20 },
 
             // === ZONA 6: Dispersas y variadas (x: 4400-5200) ===
-            { x: 4450, y: groundY - 115, width: 90,  height: 20 },
-            { x: 4700, y: groundY - 60,  width: 170, height: 20 },
-            { x: 4950, y: groundY - 130, width: 80,  height: 20 },
+            { x: 4450, y: groundY - 115, width: 90, height: 20 },
+            { x: 4700, y: groundY - 60, width: 170, height: 20 },
+            { x: 4950, y: groundY - 130, width: 80, height: 20 },
             { x: 4600, y: groundY - 195, width: 100, height: 20 },
-            { x: 5150, y: groundY - 85,  width: 140, height: 20 },
+            { x: 5150, y: groundY - 85, width: 140, height: 20 },
 
             // === ZONA 7: Escalera descendente (x: 5300-6100) ===
             { x: 5350, y: groundY - 140, width: 100, height: 20 },
             { x: 5550, y: groundY - 110, width: 120, height: 20 },
-            { x: 5780, y: groundY - 75,  width: 150, height: 20 },
-            { x: 5450, y: groundY - 210, width: 85,  height: 20 },
-            { x: 6050, y: groundY - 95,  width: 110, height: 20 },
+            { x: 5780, y: groundY - 75, width: 150, height: 20 },
+            { x: 5450, y: groundY - 210, width: 85, height: 20 },
+            { x: 6050, y: groundY - 95, width: 110, height: 20 },
 
             // === ZONA 8: Puente con hueco (x: 6200-7000) ===
-            { x: 6250, y: groundY - 90,  width: 160, height: 20 },
-            { x: 6600, y: groundY - 90,  width: 160, height: 20 },
+            { x: 6250, y: groundY - 90, width: 160, height: 20 },
+            { x: 6600, y: groundY - 90, width: 160, height: 20 },
             { x: 6420, y: groundY - 185, width: 100, height: 20 },
             { x: 6900, y: groundY - 120, width: 100, height: 20 },
 
             // === ZONA 9: Alturas extremas variadas (x: 7100-7900) ===
-            { x: 7150, y: groundY - 60,  width: 180, height: 20 },
-            { x: 7400, y: groundY - 135, width: 90,  height: 20 },
-            { x: 7600, y: groundY - 70,  width: 120, height: 20 },
-            { x: 7500, y: groundY - 200, width: 95,  height: 20 },
+            { x: 7150, y: groundY - 60, width: 180, height: 20 },
+            { x: 7400, y: groundY - 135, width: 90, height: 20 },
+            { x: 7600, y: groundY - 70, width: 120, height: 20 },
+            { x: 7500, y: groundY - 200, width: 95, height: 20 },
             { x: 7850, y: groundY - 105, width: 130, height: 20 },
 
             // === ZONA 10: Compactas y cercanas (x: 8000-8700) ===
-            { x: 8050, y: groundY - 85,  width: 100, height: 20 },
+            { x: 8050, y: groundY - 85, width: 100, height: 20 },
             { x: 8200, y: groundY - 120, width: 100, height: 20 },
-            { x: 8350, y: groundY - 80,  width: 100, height: 20 },
+            { x: 8350, y: groundY - 80, width: 100, height: 20 },
             { x: 8500, y: groundY - 130, width: 100, height: 20 },
-            { x: 8250, y: groundY - 205, width: 90,  height: 20 },
+            { x: 8250, y: groundY - 205, width: 90, height: 20 },
 
             // === ZONA 11: Final del mapa (x: 8800-9700) ===
-            { x: 8850, y: groundY - 70,  width: 140, height: 20 },
+            { x: 8850, y: groundY - 70, width: 140, height: 20 },
             { x: 9050, y: groundY - 110, width: 110, height: 20 },
             { x: 9250, y: groundY - 140, width: 100, height: 20 },
-            { x: 9150, y: groundY - 210, width: 85,  height: 20 },
-            { x: 9500, y: groundY - 90,  width: 150, height: 20 },
-            { x: 9700, y: groundY - 65,  width: 130, height: 20 },
+            { x: 9150, y: groundY - 210, width: 85, height: 20 },
+            { x: 9500, y: groundY - 90, width: 150, height: 20 },
+            { x: 9700, y: groundY - 65, width: 130, height: 20 },
         ];
 
         floatingPlatforms.forEach(platform => {
@@ -359,6 +368,50 @@ export class SupervivenciaGame {
         });
 
         return platforms;
+    }
+
+    generateTrees() {
+        const trees = [];
+        const numTrees = 15; // Menos árboles porque supervivencia es más corto/estático o infinito? (worldWidth is 3000)
+
+        let spawnedTrees = 0;
+        let attempts = 0;
+
+        // Intentar colocar árboles solo donde no haya plataformas flotantes
+        while (spawnedTrees < numTrees && attempts < 200) {
+            attempts++;
+            const xPos = Math.random() * this.worldWidth;
+            const width = 180 + Math.random() * 120; // Ancho entre 180 y 300
+            const height = width * 1.0; // Proporción 1:1
+            const groundY = this.config.height - 50;
+
+            // Verificar superposición horizontal con plataformas
+            let overlaps = false;
+            for (const plat of this.platforms) {
+                if (!plat.isFloor) {
+                    // Rango horizontal con margen de 20px
+                    if (xPos + width + 20 > plat.x && xPos - 20 < plat.x + plat.width) {
+                        overlaps = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!overlaps) {
+                trees.push({
+                    x: xPos,
+                    y: groundY - height + 10,
+                    width: width,
+                    height: height
+                });
+                spawnedTrees++;
+            }
+        }
+
+        // Ordenar por Y para efecto de profundidad básico
+        trees.sort((a, b) => a.y - b.y);
+
+        return trees;
     }
 
 
@@ -379,6 +432,14 @@ export class SupervivenciaGame {
         // Manejar pausa/reanudar (siempre verificar, incluso en pausa)
         if (this.keys['KeyP'] || this.keys['Escape']) {
             this.paused = !this.paused;
+            const pauseMenu = document.getElementById('pause-menu');
+            if (pauseMenu) {
+                if (this.paused) {
+                    pauseMenu.classList.remove('hidden');
+                } else {
+                    pauseMenu.classList.add('hidden');
+                }
+            }
             this.keys['KeyP'] = false;
             this.keys['Escape'] = false;
             return;
@@ -553,7 +614,7 @@ export class SupervivenciaGame {
                 if (this.checkCollision(projectile, enemy)) {
                     // Restar vida al enemigo
                     enemy.health--;
-                    
+
                     // Crear partículas de impacto
                     this.createParticles(projectile.x, projectile.y, '#FF00FF');
 
@@ -616,7 +677,7 @@ export class SupervivenciaGame {
             if (!this.gameOver) {
                 this.gameOver = true;
                 this.currentDeathPhrase = this.deathPhrases[Math.floor(Math.random() * this.deathPhrases.length)].toUpperCase();
-                
+
                 // Reproducir audio de muerte
                 if (this.deathAudio) {
                     this.deathAudio.play().catch(e => console.log('Error reproduciendo audio de muerte:', e));
@@ -707,7 +768,7 @@ export class SupervivenciaGame {
 
             // Lógica de animación del duende
             enemy.animationTimer += 16.67 * dt;
-            
+
             // Determinar estado de animación
             const isMoving = Math.abs(dx) > 1;
             const isAttacking = distance < 60; // Distancia para considerar ataque visual
@@ -736,7 +797,7 @@ export class SupervivenciaGame {
             // Ciclo de frames
             const animConfig = this.duendeSpriteConfig.animations[enemy.animationState];
             const numFrames = (animConfig.end - animConfig.start) + 1;
-            
+
             if (enemy.animationTimer >= enemy.animationSpeed) {
                 enemy.animationFrame = (enemy.animationFrame + 1) % numFrames;
                 enemy.animationTimer = 0;
@@ -749,7 +810,7 @@ export class SupervivenciaGame {
                     // Daño base de 10 escalado por la dificultad
                     const baseDamage = 10;
                     const scaledDamage = baseDamage * this.difficultyMultiplier;
-                    
+
                     this.player.health -= scaledDamage;
                     this.player.lastDamageTime = now;
                     this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
@@ -809,8 +870,8 @@ export class SupervivenciaGame {
             // El sprite (153x153) se alinea por los pies con el hitbox (40x60),
             // así que el centro visual está muy por encima del centro del hitbox.
             const playerVisualCenterX = this.player.x + this.player.width / 2;
-            // Centro del cuerpo del personaje para recogida
-            const playerVisualCenterY = this.player.y + this.player.height / 2;
+            // Centro del cuerpo del personaje para recogida (aprox mitad de la altura visual del sprite)
+            const playerVisualCenterY = this.player.y + this.player.height - 76;
             const gemCenterX = gem.x + gem.width / 2;
             const gemCenterY = gem.y + gem.height / 2;
 
@@ -839,7 +900,7 @@ export class SupervivenciaGame {
         for (let i = this.healingTokens.length - 1; i >= 0; i--) {
             const token = this.healingTokens[i];
             const playerVisualCenterX = this.player.x + this.player.width / 2;
-            const playerVisualCenterY = this.player.y + this.player.height / 2;
+            const playerVisualCenterY = this.player.y + this.player.height - 76;
             const tokenCenterX = token.x + token.width / 2;
             const tokenCenterY = token.y + token.height / 2;
 
@@ -879,7 +940,7 @@ export class SupervivenciaGame {
         } else {
             spawnX = this.camera.x + this.config.width - 100; // Borde derecho visible estándar
         }
-        
+
         const groundY = this.config.height - 50; // Superficie del piso marrón
 
         const enemy = {
@@ -916,7 +977,7 @@ export class SupervivenciaGame {
     spawnHealingToken() {
         const groundY = this.config.height - 50;
         const y = groundY - 120 - Math.random() * 80;
-        
+
         let tokenX;
         do {
             tokenX = this.camera.x + Math.random() * (this.config.width - 40) + 20;
@@ -1004,7 +1065,7 @@ export class SupervivenciaGame {
         if (this.animationState !== 'attacking') {
             if (!this.player.isGrounded) {
                 this.animationState = 'jumping';
-                currentAnimationSpeed = 250; // Salto mucho más lento
+                currentAnimationSpeed = 80; // Salto más fluido (80ms por frame)
             } else {
                 // 3. Prioridad: Caminar o Reposo
                 if (Math.abs(this.player.velocityX) > 0.5) {
@@ -1052,6 +1113,13 @@ export class SupervivenciaGame {
 
         // Aplicar transformación de la cámara
         this.ctx.translate(-this.camera.x, -this.camera.y);
+
+        // Dibujar árboles en el fondo (detrás de las plataformas y el jugador)
+        if (this.treeImageLoaded && this.treeImage.complete) {
+            for (const tree of this.trees) {
+                this.ctx.drawImage(this.treeImage, tree.x, tree.y, tree.width, tree.height);
+            }
+        }
 
         // Dibujar plataformas
         for (const platform of this.platforms) {
@@ -1110,10 +1178,10 @@ export class SupervivenciaGame {
                 // Configuración de animación actual
                 const anim = this.duendeSpriteConfig.animations[enemy.animationState];
                 const frameIndex = anim.start + enemy.animationFrame;
-                
+
                 const col = frameIndex % this.duendeSpriteConfig.framesPerRow;
                 const row = Math.floor(frameIndex / this.duendeSpriteConfig.framesPerRow);
-                
+
                 const sx = col * this.duendeSpriteConfig.frameWidth;
                 const sy = row * this.duendeSpriteConfig.frameHeight;
 
@@ -1140,7 +1208,7 @@ export class SupervivenciaGame {
                 // 3. Relleno de vida (Sangre fresca)
                 const hpPercentage = enemy.health / enemy.maxHealth;
                 const fillWidth = (hpBarWidth - 2) * Math.max(0, hpPercentage);
-                
+
                 if (fillWidth > 0) {
                     const grad = this.ctx.createLinearGradient(hpBarX, hpBarY, hpBarX, hpBarY + hpBarHeight);
                     grad.addColorStop(0, '#ff4d4d');
@@ -1242,8 +1310,8 @@ export class SupervivenciaGame {
             // Offset para centrar el sprite en el collider
             const offsetX = playerCenterX - (scaledWidth / 2);
             // El collider tiene 60 de alto, el sprite es más grande, alineamos a nivel inferior
-            // Se le quitó el offset que tenía (+15) para subirlo un poco y que no se hunda
-            const offsetY = (this.player.y + this.player.height) - scaledHeight + 6;
+            // Se le suma 15 para que los pies toquen correctamente el suelo y no floten
+            const offsetY = (this.player.y + this.player.height) - scaledHeight + 15;
 
             this.ctx.drawImage(
                 this.characterSprite,
@@ -1275,16 +1343,10 @@ export class SupervivenciaGame {
         // Restaurar estado del contexto (quitar cámara)
         this.ctx.restore();
 
-        // UI de pausa
+        // UI de pausa (Fondo oscuro, los botones ahora son HTML)
         if (this.paused) {
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.font = '48px Arial';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText('PAUSA', this.canvas.width / 2, this.canvas.height / 2);
-            this.ctx.font = '24px Arial';
-            this.ctx.fillText('Presiona P para continuar', this.canvas.width / 2, this.canvas.height / 2 + 50);
         }
 
         // Pantallas de fin de juego
@@ -1408,7 +1470,7 @@ export class SupervivenciaGame {
 
             this.ctx.font = 'bold 28px Georgia, serif';
             this.ctx.textAlign = 'center';
-            
+
             // Sombra del tiempo
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             this.ctx.fillText(timeStr, this.canvas.width / 2 + 2, 42);
@@ -1450,17 +1512,19 @@ export class SupervivenciaGame {
 
 
     gameLoop() {
+        this.isStopped = false;
         const loop = () => {
+            if (this.isStopped) return;
+
             const currentTime = Date.now();
             const deltaTime = currentTime - this.lastFrameTime;
             this.lastFrameTime = currentTime;
 
-            // Actualizar animaciones
-            this.updateAnimations(deltaTime);
-
             if (!this.gameOver) {
                 this.handleInput(); // Siempre llamar handleInput para poder pausar/reanudar
                 if (!this.paused) {
+                    // Actualizar animaciones
+                    this.updateAnimations(deltaTime);
                     this.updatePhysics(deltaTime);
                     // updateHUD() eliminada - HUD ahora se dibuja en canvas
                 }
@@ -1476,6 +1540,7 @@ export class SupervivenciaGame {
 
     stop() {
         this.gameOver = true;
+        this.isStopped = true;
     }
 
     start() {
@@ -1765,13 +1830,13 @@ export class SupervivenciaGame {
         this.victory = false;
         this.paused = false;
         this.score = 0;
-        
+
         // Detener audio de muerte
         if (this.deathAudio) {
             this.deathAudio.pause();
             this.deathAudio.currentTime = 0;
         }
-        
+
         // Reiniciar cronómetro y dificultad
         this.levelStartTime = Date.now();
         this.player.survivalTime = 0;
@@ -1801,7 +1866,7 @@ export class SupervivenciaGame {
         this.enemySpawnTimer = 0;
         this.gemSpawnTimer = 0;
         this.healingTokenSpawnTimer = 0;
-        
+
         console.log('Juego reiniciado con éxito.');
     }
 
@@ -1833,7 +1898,7 @@ export class SupervivenciaGame {
         this.ctx.font = 'bold 60px Georgia, serif';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        
+
         this.ctx.shadowColor = '#FFD700';
         this.ctx.shadowBlur = 20;
         this.ctx.fillStyle = '#FFF5DC';
@@ -1843,7 +1908,7 @@ export class SupervivenciaGame {
         this.ctx.font = '24px Georgia, serif';
         this.ctx.fillStyle = '#B8976A';
         this.ctx.fillText('Has sobrevivido al asalto', cx, cy + 20);
-        
+
         this.ctx.font = '18px Georgia, serif';
         this.ctx.fillText(`Puntuación Final: ${this.score}`, cx, cy + 60);
 
@@ -1858,7 +1923,7 @@ export class SupervivenciaGame {
         this.victoryButtons.restart.y = btnY;
         this.victoryButtons.restart.width = btnW;
         this.victoryButtons.restart.height = btnH;
-        
+
         this.victoryButtons.menu.x = cx + spacing - btnW / 2;
         this.victoryButtons.menu.y = btnY;
         this.victoryButtons.menu.width = btnW;
@@ -1951,9 +2016,17 @@ export class SupervivenciaGame {
         // Botón de pausa especial
         const pauseBtn = document.getElementById('btn-pause');
         if (pauseBtn) {
-            pauseBtn.addEventListener('touchstart', (e) => {
+            pauseBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.paused = !this.paused;
+                const pauseMenu = document.getElementById('pause-menu');
+                if (pauseMenu) {
+                    if (this.paused) {
+                        pauseMenu.classList.remove('hidden');
+                    } else {
+                        pauseMenu.classList.add('hidden');
+                    }
+                }
             });
         }
     }
