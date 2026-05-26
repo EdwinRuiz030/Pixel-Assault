@@ -1,4 +1,4 @@
-// Clase para el Modo Historia
+// Clase para el Modo Historia aa
 export class StoryMode {
     constructor() {
         console.log('=== INICIO CONSTRUCTOR STORY MODE ===');
@@ -163,6 +163,20 @@ export class StoryMode {
 
         // Estado de Victoria
         this.victory = false;
+
+        // --- SISTEMAS ADICIONALES MODO HISTORIA ---
+        this.checkpoints = [
+            { x: 3500, active: false, particlesGenerated: false },
+            { x: 6500, active: false, particlesGenerated: false }
+        ];
+        this.lastActiveCheckpoint = null;
+
+        this.boss = null;
+        this.bossActive = false;
+        this.bossDefeated = false;
+        this.cameraLocked = false;
+        this.storyIntroActive = true;
+        // ------------------------------------------
 
         // Sistema Anti-Camping
         this.playerStillTimer = 0;
@@ -383,8 +397,6 @@ export class StoryMode {
             { x: 9050, y: groundY - 110, width: 110, height: 20 },
             { x: 9250, y: groundY - 140, width: 100, height: 20 },
             { x: 9150, y: groundY - 210, width: 85, height: 20 },
-            { x: 9500, y: groundY - 90, width: 150, height: 20 },
-            { x: 9700, y: groundY - 65, width: 130, height: 20 },
         ];
 
         floatingPlatforms.forEach(platform => {
@@ -445,6 +457,11 @@ export class StoryMode {
 
     setupControls() {
         window.addEventListener('keydown', (e) => {
+            if (this.storyIntroActive) {
+                this.storyIntroActive = false;
+                this.levelStartTime = Date.now(); // Reiniciar tiempo al iniciar real
+                return;
+            }
             this.keys[e.code] = true;
         });
 
@@ -454,6 +471,7 @@ export class StoryMode {
     }
 
     handleInput() {
+        if (this.storyIntroActive) return;
         if (this.gameOver) return;
 
         // Manejar pausa/reanudar (siempre verificar, incluso en pausa)
@@ -600,16 +618,67 @@ export class StoryMode {
             this.player.x = this.worldWidth - this.player.width;
         }
 
-        // Actualizar cámara para seguir al jugador (manual)
-        const targetCameraX = this.player.x - this.config.width / 2;
+        // --- GESTIÓN DE CÁMARA BLOQUEADA POR JEFE ---
+        let targetCameraX = this.player.x - this.config.width / 2;
 
-        // Suavizar movimiento de la cámara
-        this.camera.x += (targetCameraX - this.camera.x) * 0.1;
+        if (this.cameraLocked) {
+            // Mantener la cámara fija en el punto de bloqueo
+            this.camera.x = this.cameraLockX;
+            
+            // Restringir el movimiento del jugador a la pantalla visible de combate
+            if (this.player.x < this.camera.x) {
+                this.player.x = this.camera.x;
+                this.player.velocityX = 0;
+            }
+            if (this.player.x + this.player.width > this.camera.x + this.config.width) {
+                this.player.x = this.camera.x + this.config.width - this.player.width;
+                this.player.velocityX = 0;
+            }
+        } else {
+            // Suavizar movimiento de la cámara
+            this.camera.x += (targetCameraX - this.camera.x) * 0.1;
 
-        // Limitar cámara a los bordes del mundo
-        if (this.camera.x < 0) this.camera.x = 0;
-        if (this.camera.x > this.worldWidth - this.config.width) {
-            this.camera.x = this.worldWidth - this.config.width;
+            // Limitar cámara a los bordes del mundo
+            if (this.camera.x < 0) this.camera.x = 0;
+            if (this.camera.x > this.worldWidth - this.config.width) {
+                this.camera.x = this.worldWidth - this.config.width;
+            }
+        }
+
+        // --- DISPARADOR DE COMBATE DE JEFE FINAL ---
+        if (this.player.x >= 9000 && !this.bossActive && !this.bossDefeated) {
+            this.bossActive = true;
+            this.cameraLocked = true;
+            this.cameraLockX = this.camera.x; // Guardar la posición actual de bloqueo
+            this.spawnBoss();
+        }
+
+        // --- CONDICIÓN DE VICTORIA AL LLEGAR AL CASTILLO ---
+        if (this.bossDefeated && this.player.x >= 9700) {
+            if (!this.victory) {
+                this.victory = true;
+                this.paused = true;
+                console.log("¡Has alcanzado el Castillo de Pixelia! ¡Victoria!");
+            }
+        }
+
+        // --- SISTEMA DE CHECKPOINTS (HOGUERAS) ---
+        for (const checkpoint of this.checkpoints) {
+            if (!checkpoint.active) {
+                // Si el jugador pasa por la coordenada X del checkpoint
+                if (this.player.x >= checkpoint.x && this.player.x <= checkpoint.x + 100) {
+                    checkpoint.active = true;
+                    this.lastActiveCheckpoint = { x: checkpoint.x + 50, y: this.player.y };
+                    
+                    // Curación de gracia (50 HP) al encender la hoguera
+                    this.player.health = Math.min(this.player.maxHealth, this.player.health + 50);
+                    
+                    // Partículas de celebración doradas y verdes
+                    this.createParticles(checkpoint.x + 50, this.player.y + 20, '#FFD700');
+                    this.createParticles(checkpoint.x + 50, this.player.y + 20, '#32CD32');
+                    console.log(`¡Checkpoint activado en x = ${checkpoint.x}!`);
+                }
+            }
         }
 
         // Colisión con plataformas
@@ -646,10 +715,33 @@ export class StoryMode {
                     this.createParticles(projectile.x, projectile.y, '#FF00FF');
 
                     if (enemy.health <= 0) {
+                        if (enemy.isBoss) {
+                            this.bossActive = false;
+                            this.bossDefeated = true;
+                            this.cameraLocked = false;
+                            this.boss = null;
+                            console.log("¡El Rey Duende ha sido derrotado!");
+                            // Gran cantidad de partículas de victoria
+                            this.createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#FFD700');
+                            this.createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#FF0000');
+                            this.createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#FFFF00');
+                            
+                            // Limpiar todos los demás enemigos sirvientes en el siguiente tick para evitar conflictos de indexación
+                            setTimeout(() => {
+                                this.enemies = [];
+                            }, 0);
+                        }
                         this.enemies.splice(i, 1);
                         this.createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#FF00FF');
-                        this.player.enemiesDefeated++;
-                        this.score += 100;
+                        
+                        if (!enemy.isBoss) {
+                            this.player.enemiesDefeated++;
+                            this.score += 100;
+                        } else {
+                            this.player.enemiesDefeated++;
+                            this.score += 1000; // Puntuación de Jefe
+                            this.player.gems += 50; // Oro de Jefe
+                        }
                     }
                     return false;
                 }
@@ -671,18 +763,22 @@ export class StoryMode {
 
 
 
-        // Lógica Anti-Camping
-        const distanceMoved = Math.abs(this.player.x - this.lastPlayerX);
-        if (distanceMoved < 2) { // Si se mueve menos de 2px (casi quieto)
-            this.playerStillTimer += deltaTime;
-            if (this.playerStillTimer >= this.campingThreshold) {
-                this.spawnEnemy(true); // Aparecer por la espalda
-                this.playerStillTimer = 0; // Resetear para el siguiente spawn si sigue quieto
-                console.log('¡Castigo por camping! Enemigo invocado por la espalda.');
+        // Lógica Anti-Camping (Deshabilitada al derrotar al jefe)
+        if (!this.bossDefeated) {
+            const distanceMoved = Math.abs(this.player.x - this.lastPlayerX);
+            if (distanceMoved < 2) { // Si se mueve menos de 2px (casi quieto)
+                this.playerStillTimer += deltaTime;
+                if (this.playerStillTimer >= this.campingThreshold) {
+                    this.spawnEnemy(true); // Aparecer por la espalda
+                    this.playerStillTimer = 0; // Resetear para el siguiente spawn si sigue quieto
+                    console.log('¡Castigo por camping! Enemigo invocado por la espalda.');
+                }
+            } else {
+                this.playerStillTimer = 0;
+                this.lastPlayerX = this.player.x;
             }
         } else {
             this.playerStillTimer = 0;
-            this.lastPlayerX = this.player.x;
         }
 
 
@@ -702,17 +798,27 @@ export class StoryMode {
     }
 
     updateEnemies(dt) {
-        // Spawn de enemigos (usa deltaTime real via dt)
-        this.enemySpawnTimer += 16.67 * dt;
-        if (this.enemySpawnTimer >= this.enemySpawnInterval && this.enemies.length < this.maxEnemies) {
-            this.spawnEnemy();
-            this.enemySpawnTimer = 0;
+        // Spawn de enemigos comunes (solo si el jefe no está activo o ya fue derrotado)
+        if (!this.bossActive && !this.bossDefeated) {
+            this.enemySpawnTimer += 16.67 * dt;
+            if (this.enemySpawnTimer >= this.enemySpawnInterval && this.enemies.length < this.maxEnemies) {
+                this.spawnEnemy();
+                this.enemySpawnTimer = 0;
+            }
+        } else if (this.bossActive && this.boss) {
+            // El Jefe convoca pequeños sirvientes duendes cada 7 segundos para ayudarlo
+            this.enemySpawnTimer += 16.67 * dt;
+            if (this.enemySpawnTimer >= 7000 && this.enemies.length < 4) {
+                // Aparecen cerca del jefe
+                this.spawnEnemy(false);
+                this.enemySpawnTimer = 0;
+                console.log("¡El Rey Duende ha invocado un sirviente!");
+            }
         }
 
-
-
-        // Limpiar memoria: despawnear enemigos que se han quedado muy atrás de la cámara
-        this.enemies = this.enemies.filter(enemy => enemy.x >= this.camera.x - 800);
+        // Limpiar memoria: despawnear enemigos comunes que se han quedado muy atrás
+        // El Jefe nunca debe ser despawneado por distancia
+        this.enemies = this.enemies.filter(enemy => enemy.isBoss || enemy.x >= this.camera.x - 800);
 
         // Actualizar posición y física de enemigos
         for (const enemy of this.enemies) {
@@ -730,8 +836,13 @@ export class StoryMode {
             const distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance > 0) {
-                // Velocidad base de 1.5
-                const currentEnemySpeed = 1.5;
+                // Velocidad escalada según tipo y salud
+                let baseEnemySpeed = 1.5;
+                if (enemy.isBoss) {
+                    // El jefe es un poco más lento en fase normal (1.2), pero entra en furia a mitad de HP (1.8)
+                    baseEnemySpeed = enemy.health < enemy.maxHealth / 2 ? 1.8 : 1.2;
+                }
+                const currentEnemySpeed = baseEnemySpeed;
                 const moveX = (dx / distance) * currentEnemySpeed * dt;
                 enemy.x += moveX;
 
@@ -739,8 +850,12 @@ export class StoryMode {
                 const nextX = enemy.x + moveX * 10;
                 const needsJump = this.shouldEnemyJump(enemy, nextX);
 
-                // Solo saltar si está en el suelo y realmente necesita saltar
-                if (needsJump && enemy.isGrounded && Math.random() > 0.3) {
+                // El jefe salta agresivamente por sí mismo para perseguir
+                if (enemy.isBoss && enemy.isGrounded && Math.random() < 0.015) {
+                    enemy.velocityY = enemy.health < enemy.maxHealth / 2 ? -this.config.jumpPower * 0.95 : -this.config.jumpPower * 0.85;
+                    enemy.isJumping = true;
+                    enemy.isGrounded = false;
+                } else if (needsJump && enemy.isGrounded && Math.random() > 0.3) {
                     enemy.velocityY = -this.config.jumpPower * 0.8;
                     enemy.isJumping = true;
                     enemy.isGrounded = false;
@@ -959,8 +1074,8 @@ export class StoryMode {
         const enemy = {
             x: spawnX,
             y: groundY,
-            width: 100,
-            height: 150,
+            width: 40,  // Ajustado al tamaño del personaje (40)
+            height: 60, // Ajustado al tamaño del personaje (60)
             velocityX: 0,
             velocityY: 0,
             color: '#9400D3',
@@ -985,6 +1100,41 @@ export class StoryMode {
         enemy.velocityY = 0;
 
         this.enemies.push(enemy);
+    }
+
+    spawnBoss() {
+        const groundY = this.config.height - 50;
+        
+        // El jefe aparece por la derecha del bloque de cámara
+        const spawnX = this.camera.x + this.config.width - 150;
+        
+        this.boss = {
+            x: spawnX,
+            y: groundY,
+            width: 180, // Duende gigante (1.8x de 100)
+            height: 270, // 1.8x de 150
+            velocityX: 0,
+            velocityY: 0,
+            color: '#8B0000', // Rojo oscuro
+            maxHealth: 20, // 20 HP
+            health: 20,
+            isGrounded: true,
+            isJumping: false,
+            // Animación del duende jefe
+            animationState: 'reposo',
+            animationFrame: 0,
+            animationTimer: 0,
+            animationSpeed: 100, // un poco más rápido
+            facing: -1,
+            isBoss: true
+        };
+        
+        // Ajustar para tocar el suelo
+        this.boss.y = groundY - this.boss.height;
+        this.boss.velocityY = 0;
+        
+        this.enemies.push(this.boss);
+        console.log("¡El Rey Duende ha aparecido!");
     }
 
     spawnHealingToken() {
@@ -1166,6 +1316,266 @@ export class StoryMode {
         // Aplicar transformación de la cámara
         this.ctx.translate(-this.camera.x, -this.camera.y);
 
+        // --- DIBUJAR CHECKPOINTS (HOGUERAS) ---
+        for (const checkpoint of this.checkpoints) {
+            const groundY = this.canvas.height - 50;
+            const bonfireX = checkpoint.x + 50;
+            const bonfireY = groundY - 40;
+            
+            // Dibujar troncos (madera oscura)
+            this.ctx.fillStyle = '#4A2711';
+            this.ctx.fillRect(bonfireX - 20, bonfireY + 25, 40, 10);
+            this.ctx.fillStyle = '#5A3721';
+            this.ctx.fillRect(bonfireX - 15, bonfireY + 18, 30, 8);
+            
+            if (checkpoint.active) {
+                // Dibujar fuego activo animado
+                const time = Date.now() / 150;
+                
+                // Capa exterior roja
+                this.ctx.fillStyle = '#FF4500';
+                this.ctx.beginPath();
+                this.ctx.moveTo(bonfireX - 15, bonfireY + 20);
+                this.ctx.quadraticCurveTo(bonfireX, bonfireY - 12 + Math.sin(time) * 10, bonfireX + 15, bonfireY + 20);
+                this.ctx.closePath();
+                this.ctx.fill();
+                
+                // Capa media naranja
+                this.ctx.fillStyle = '#FF8C00';
+                this.ctx.beginPath();
+                this.ctx.moveTo(bonfireX - 10, bonfireY + 20);
+                this.ctx.quadraticCurveTo(bonfireX, bonfireY - 2 + Math.cos(time) * 8, bonfireX + 10, bonfireY + 20);
+                this.ctx.closePath();
+                this.ctx.fill();
+                
+                // Capa interior amarilla
+                this.ctx.fillStyle = '#FFD700';
+                this.ctx.beginPath();
+                this.ctx.moveTo(bonfireX - 5, bonfireY + 20);
+                this.ctx.quadraticCurveTo(bonfireX, bonfireY + 5 + Math.sin(time * 1.5) * 5, bonfireX + 5, bonfireY + 20);
+                this.ctx.closePath();
+                this.ctx.fill();
+                
+                // Resplandor del fuego
+                this.ctx.save();
+                this.ctx.globalAlpha = 0.12;
+                this.ctx.fillStyle = '#FFD700';
+                this.ctx.beginPath();
+                this.ctx.arc(bonfireX, bonfireY + 15, 40 + Math.sin(time) * 4, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.restore();
+            } else {
+                // Hoguera inactiva - troncos secos y algo de ceniza gris
+                this.ctx.fillStyle = '#2F4F4F';
+                this.ctx.fillRect(bonfireX - 5, bonfireY + 12, 10, 6);
+                
+                // Pequeño humo flotante
+                const time = Date.now() / 300;
+                this.ctx.fillStyle = 'rgba(150, 150, 150, 0.4)';
+                this.ctx.beginPath();
+                this.ctx.arc(bonfireX + Math.sin(time) * 2, bonfireY + 5 - (time % 20), 2, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+            
+            // Dibujar el texto arriba de la hoguera
+            this.ctx.fillStyle = checkpoint.active ? '#FFD700' : '#888888';
+            this.ctx.font = 'bold 10px Georgia, serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(checkpoint.active ? "🔥 HOGUERA ACTIVA 🔥" : "🪵 HOGUERA DEL DESTINO", bonfireX, bonfireY - 15);
+        }
+
+        // --- DIBUJAR EL GRAN CASTILLO AL FINAL ---
+        const castleX = 9600;
+        const groundY = this.canvas.height - 50;
+        
+        // Estructuras de la fortaleza medieval
+        const drawStoneStructure = (x, y, w, h) => {
+            // Base del muro en piedra gris
+            this.ctx.fillStyle = '#5A5A5A';
+            this.ctx.fillRect(x, y, w, h);
+            
+            // Sombreado inferior de bloques
+            this.ctx.fillStyle = '#3F3F3F';
+            this.ctx.fillRect(x, y + h - 5, w, 5);
+
+            // Bordes y juntas de piedra
+            this.ctx.strokeStyle = '#2B2B2B';
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeRect(x, y, w, h);
+
+            // Líneas de bloques de ladrillo horizontales
+            const brickH = 15;
+            this.ctx.strokeStyle = '#383838';
+            this.ctx.lineWidth = 1;
+            for (let by = y + brickH; by < y + h; by += brickH) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, by);
+                this.ctx.lineTo(x + w, by);
+                this.ctx.stroke();
+            }
+
+            // Juntas verticales de ladrillo (escalonadas)
+            const brickW = 30;
+            let row = 0;
+            for (let by = y; by < y + h; by += brickH) {
+                const shift = (row % 2) * (brickW / 2);
+                for (let bx = x + shift; bx < x + w; bx += brickW) {
+                    if (bx > x && bx < x + w) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(bx, by);
+                        this.ctx.lineTo(bx, by + brickH);
+                        this.ctx.stroke();
+                    }
+                }
+                row++;
+            }
+        };
+
+        const drawBattlements = (x, y, w) => {
+            this.ctx.fillStyle = '#5A5A5A';
+            const size = 15;
+            for (let bx = x; bx < x + w; bx += size * 2) {
+                this.ctx.fillRect(bx, y - size, size, size);
+                this.ctx.strokeStyle = '#2B2B2B';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(bx, y - size, size, size);
+            }
+        };
+
+        const drawTowerRoof = (x, y, w) => {
+            // Tejado cónico carmesí
+            this.ctx.fillStyle = '#B22222';
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - 5, y);
+            this.ctx.lineTo(x + w / 2, y - 50);
+            this.ctx.lineTo(x + w + 5, y);
+            this.ctx.closePath();
+            this.ctx.fill();
+
+            this.ctx.strokeStyle = '#5E1928';
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+
+            // Astil de bandera
+            this.ctx.strokeStyle = '#D4AF37';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.moveTo(x + w / 2, y - 50);
+            this.ctx.lineTo(x + w / 2, y - 70);
+            this.ctx.stroke();
+
+            // Bandera dorada flameando
+            this.ctx.fillStyle = '#FFD700';
+            this.ctx.beginPath();
+            this.ctx.moveTo(x + w / 2, y - 70);
+            this.ctx.lineTo(x + w / 2 + 18, y - 65);
+            this.ctx.lineTo(x + w / 2, y - 60);
+            this.ctx.closePath();
+            this.ctx.fill();
+        };
+
+        // Dibujar base del castillo
+        this.ctx.fillStyle = '#2B2B2B';
+        this.ctx.fillRect(castleX - 60, groundY - 10, 480, 10);
+
+        // Muros exteriores (izq y der de la puerta)
+        drawStoneStructure(castleX + 60, groundY - 180, 240, 180);
+        drawBattlements(castleX + 60, groundY - 180, 240);
+
+        // Torre izquierda
+        drawStoneStructure(castleX, groundY - 260, 60, 260);
+        drawBattlements(castleX, groundY - 260, 60);
+        drawTowerRoof(castleX, groundY - 260, 60);
+
+        // Torre derecha
+        drawStoneStructure(castleX + 300, groundY - 260, 60, 260);
+        drawBattlements(castleX + 300, groundY - 260, 60);
+        drawTowerRoof(castleX + 300, groundY - 260, 60);
+
+        // --- LA GRAN PUERTA CENTRAL ---
+        const gateX = castleX + 130;
+        const gateY = groundY - 120;
+        const gateW = 100;
+        const gateH = 120;
+
+        // Fondo oscuro del arco
+        this.ctx.fillStyle = '#111111';
+        this.ctx.fillRect(gateX, gateY, gateW, gateH);
+
+        // Relleno de la puerta según estado
+        if (!this.bossDefeated) {
+            // Puerta de madera pesada
+            this.ctx.fillStyle = '#5C4033'; // Marrón madera oscura
+            this.ctx.fillRect(gateX + 4, gateY + 4, gateW - 8, gateH - 4);
+
+            // Tablones verticales
+            this.ctx.strokeStyle = '#3E2A1C';
+            this.ctx.lineWidth = 2;
+            for (let tx = gateX + 15; tx < gateX + gateW - 5; tx += 15) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(tx, gateY + 4);
+                this.ctx.lineTo(tx, gateY + gateH);
+                this.ctx.stroke();
+            }
+
+            // Rejas de hierro oscuras (portcullis)
+            this.ctx.strokeStyle = '#2c3e50';
+            this.ctx.lineWidth = 4;
+            // Barras verticales
+            for (let bx = gateX + 10; bx < gateX + gateW; bx += 20) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(bx, gateY);
+                this.ctx.lineTo(bx, gateY + gateH);
+                this.ctx.stroke();
+            }
+            // Barras horizontales
+            for (let by = gateY + 20; by < gateY + gateH; by += 25) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(gateX, by);
+                this.ctx.lineTo(gateX + gateW, by);
+                this.ctx.stroke();
+            }
+        } else {
+            // ¡Castillo abierto! Renderizar luz dorada mística espectacular
+            const time = Date.now() / 150;
+            const alpha = 0.25 + Math.sin(time) * 0.1;
+
+            const grad = this.ctx.createLinearGradient(0, gateY, 0, gateY + gateH);
+            grad.addColorStop(0, 'rgba(255, 223, 0, 0.9)');
+            grad.addColorStop(0.5, `rgba(255, 140, 0, ${alpha * 0.8})`);
+            grad.addColorStop(1, 'rgba(255, 69, 0, 0.1)');
+            this.ctx.fillStyle = grad;
+            this.ctx.fillRect(gateX + 4, gateY + 4, gateW - 8, gateH - 4);
+
+            // Resplandor de rayos dorados sobre el suelo
+            this.ctx.fillStyle = `rgba(255, 215, 0, ${alpha * 0.4})`;
+            this.ctx.beginPath();
+            this.ctx.moveTo(gateX + 10, gateY + gateH);
+            this.ctx.lineTo(gateX + gateW - 10, gateY + gateH);
+            this.ctx.lineTo(gateX + gateW + 60, gateY + gateH + 50);
+            this.ctx.lineTo(gateX - 60, gateY + gateH + 50);
+            this.ctx.closePath();
+            this.ctx.fill();
+        }
+
+        // Borde de piedra del arco de la puerta
+        this.ctx.strokeStyle = '#3A3A3A';
+        this.ctx.lineWidth = 6;
+        this.ctx.strokeRect(gateX, gateY, gateW, gateH);
+
+        // Texto informativo medieval arriba de la puerta
+        this.ctx.fillStyle = this.bossDefeated ? '#FFD700' : '#C0C0C0';
+        this.ctx.font = 'bold 13px Georgia, serif';
+        this.ctx.textAlign = 'center';
+        
+        // Sombra de texto
+        this.ctx.fillStyle = '#000000';
+        this.ctx.fillText(this.bossDefeated ? "🏰 ¡ENTRA AL CASTILLO!" : "🔒 CASTILLO BLOQUEADO", castleX + 180 + 1, gateY - 20 + 1);
+        this.ctx.fillStyle = this.bossDefeated ? '#FFD700' : '#A9A9A9';
+        this.ctx.fillText(this.bossDefeated ? "🏰 ¡ENTRA AL CASTILLO!" : "🔒 CASTILLO BLOQUEADO", castleX + 180, gateY - 20);
+
+
+
         // Dibujar árboles en el fondo (detrás de las plataformas y el jugador)
         if (this.treeImageLoaded && this.treeImage.complete) {
             for (const tree of this.trees) {
@@ -1240,9 +1650,10 @@ export class StoryMode {
         // Dibujar enemigos con diseño de duende
         for (const enemy of this.enemies) {
             if (this.duendeImageLoaded) {
-                // Duende más grande y proporcional al jugador
-                const duendeWidth = 100;  // Ancho aumentado para mejor proporción
-                const duendeHeight = 150; // Alto proporcional (1.5x el ancho)
+                // Si es el jefe final, lo escalamos a 1.35x de su gran hitbox.
+                // Si es un duende común, lo escalamos a 100x150 para acoplarlo al tamaño visual del personaje.
+                const duendeWidth = enemy.isBoss ? enemy.width * 1.35 : 100;
+                const duendeHeight = enemy.isBoss ? enemy.height * 1.35 : 150;
 
                 // Determinar si el enemigo debe voltear
                 // Según la imagen, parece que el duende mira a la derecha por defecto.
@@ -1253,8 +1664,13 @@ export class StoryMode {
 
                 this.ctx.save();
 
+                // Centrar horizontalmente sobre el hitbox
                 const drawX = enemyCenterX - duendeWidth / 2;
-                const drawY = enemy.y;
+                
+                // Desplazar el sprite hacia abajo para que los pies toquen el suelo y no flote
+                // debido al espacio transparente en la parte inferior del frame del sprite sheet.
+                const offsetY = duendeHeight * 0.12;
+                const drawY = (enemy.y + enemy.height) - duendeHeight + offsetY;
 
                 if (enemyFacingLeft) {
                     // Voltear horizontalmente para mirar a la izquierda usando el centro del enemigo
@@ -1280,34 +1696,37 @@ export class StoryMode {
                 );
 
                 // --- BARRA DE VIDA MEDIEVAL PARA ENEMIGO ---
-                const hpBarWidth = 60;
-                const hpBarHeight = 8;
-                const hpBarX = enemyCenterX - hpBarWidth / 2;
-                const hpBarY = enemy.y - 15; // Un poco por encima del duende
+                // Ocultar barra pequeña sobre el jefe final porque ya tiene la gran barra de vida HUD en pantalla
+                if (!enemy.isBoss) {
+                    const hpBarWidth = 60;
+                    const hpBarHeight = 8;
+                    const hpBarX = enemyCenterX - hpBarWidth / 2;
+                    const hpBarY = drawY - 12; // Posicionar siempre un poco por encima del sprite visible en lugar del hitbox
 
-                // 1. Marco de hierro/madera oscura
-                this.ctx.fillStyle = '#1a1105';
-                this.ctx.fillRect(hpBarX, hpBarY, hpBarWidth, hpBarHeight);
+                    // 1. Marco de hierro/madera oscura
+                    this.ctx.fillStyle = '#1a1105';
+                    this.ctx.fillRect(hpBarX, hpBarY, hpBarWidth, hpBarHeight);
 
-                // 2. Fondo de la barra (Rojo muy oscuro/sangre seca)
-                this.ctx.fillStyle = '#2a0505';
-                this.ctx.fillRect(hpBarX + 1, hpBarY + 1, hpBarWidth - 2, hpBarHeight - 2);
+                    // 2. Fondo de la barra (Rojo muy oscuro/sangre seca)
+                    this.ctx.fillStyle = '#2a0505';
+                    this.ctx.fillRect(hpBarX + 1, hpBarY + 1, hpBarWidth - 2, hpBarHeight - 2);
 
-                // 3. Relleno de vida (Sangre fresca)
-                const hpPercentage = enemy.health / enemy.maxHealth;
-                const fillWidth = (hpBarWidth - 2) * Math.max(0, hpPercentage);
+                    // 3. Relleno de vida (Sangre fresca)
+                    const hpPercentage = enemy.health / enemy.maxHealth;
+                    const fillWidth = (hpBarWidth - 2) * Math.max(0, hpPercentage);
 
-                if (fillWidth > 0) {
-                    const grad = this.ctx.createLinearGradient(hpBarX, hpBarY, hpBarX, hpBarY + hpBarHeight);
-                    grad.addColorStop(0, '#ff4d4d');
-                    grad.addColorStop(0.5, '#cc0000');
-                    grad.addColorStop(1, '#8b0000');
-                    this.ctx.fillStyle = grad;
-                    this.ctx.fillRect(hpBarX + 1, hpBarY + 1, fillWidth, hpBarHeight - 2);
+                    if (fillWidth > 0) {
+                        const grad = this.ctx.createLinearGradient(hpBarX, hpBarY, hpBarX, hpBarY + hpBarHeight);
+                        grad.addColorStop(0, '#ff4d4d');
+                        grad.addColorStop(0.5, '#cc0000');
+                        grad.addColorStop(1, '#8b0000');
+                        this.ctx.fillStyle = grad;
+                        this.ctx.fillRect(hpBarX + 1, hpBarY + 1, fillWidth, hpBarHeight - 2);
 
-                    // Reflejo/brillo metálico
-                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-                    this.ctx.fillRect(hpBarX + 1, hpBarY + 1, fillWidth, (hpBarHeight - 2) / 2);
+                        // Reflejo/brillo metálico
+                        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                        this.ctx.fillRect(hpBarX + 1, hpBarY + 1, fillWidth, (hpBarHeight - 2) / 2);
+                    }
                 }
 
                 this.ctx.restore();
@@ -1570,6 +1989,196 @@ export class StoryMode {
             this.ctx.fillText(`🪙 Oro: ${this.player.gems}`, barX, barY + height + 30);
 
             this.ctx.restore();
+
+            // --- HUD: BARRA DE PROGRESO DEL VIAJE ---
+            if (!this.victory && !this.storyIntroActive) {
+                const progressX = this.canvas.width - 270;
+                const progressY = 20;
+                const progressW = 220;
+                const progressH = 8;
+                
+                // Borde exterior (hierro forjado)
+                this.ctx.fillStyle = '#1a1105';
+                this.ctx.fillRect(progressX, progressY, progressW, progressH);
+                
+                // Fondo de la barra (oro viejo apagado)
+                this.ctx.fillStyle = '#3a270f';
+                this.ctx.fillRect(progressX + 1, progressY + 1, progressW - 2, progressH - 2);
+                
+                // Calcular porcentaje de progreso
+                const startX = 200;
+                const endX = 9500;
+                const progressPercentage = Math.max(0, Math.min(1, (this.player.x - startX) / (endX - startX)));
+                const fillWidth = (progressW - 2) * progressPercentage;
+                
+                if (fillWidth > 0) {
+                    const progressGrad = this.ctx.createLinearGradient(progressX, progressY, progressX + progressW, progressY);
+                    progressGrad.addColorStop(0, '#B8860B'); // Bronce
+                    progressGrad.addColorStop(1, '#FFD700'); // Oro
+                    this.ctx.fillStyle = progressGrad;
+                    this.ctx.fillRect(progressX + 1, progressY + 1, fillWidth, progressH - 2);
+                }
+                
+                // Pequeño indicador de Caballero
+                const knightPos = progressX + 1 + (progressW - 2) * progressPercentage;
+                this.ctx.fillStyle = '#FFFFFF';
+                this.ctx.beginPath();
+                this.ctx.arc(knightPos, progressY + progressH / 2, 6, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.fillStyle = '#FFD700';
+                this.ctx.beginPath();
+                this.ctx.arc(knightPos, progressY + progressH / 2, 4, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Dibujar castillo emoji al final
+                this.ctx.fillStyle = this.bossDefeated ? '#FFD700' : '#888888';
+                this.ctx.font = '12px serif';
+                this.ctx.textAlign = 'left';
+                this.ctx.fillText("🏰", progressX + progressW + 5, progressY + 8);
+                
+                // Texto superior
+                this.ctx.fillStyle = '#FFD700';
+                this.ctx.font = 'bold 9px Georgia, serif';
+                this.ctx.textAlign = 'right';
+                this.ctx.fillText("CAMINO AL CASTILLO", progressX + progressW, progressY - 5);
+            }
+        }
+
+        // --- HUD: BARRA DE VIDA GIGANTE DEL JEFE ---
+        if (this.bossActive && this.boss && !this.gameOver && !this.victory) {
+            const bossW = Math.min(this.canvas.width * 0.7, 500);
+            const bossH = 20;
+            const bossX = this.canvas.width / 2 - bossW / 2;
+            const bossY = this.canvas.height - 85;
+            
+            // 1. Marco de hierro forjado
+            this.ctx.fillStyle = '#1a1105';
+            this.ctx.fillRect(bossX - 4, bossY - 4, bossW + 8, bossH + 8);
+            
+            // 2. Borde decorativo dorado
+            this.ctx.fillStyle = '#DAA520';
+            this.ctx.fillRect(bossX - 2, bossY - 2, bossW + 4, bossH + 4);
+            
+            // 3. Fondo vacío (sangre seca)
+            this.ctx.fillStyle = '#2a0505';
+            this.ctx.fillRect(bossX, bossY, bossW, bossH);
+            
+            // 4. Relleno de vida (sangre fresca)
+            const bossHpPercentage = Math.max(0, this.boss.health / this.boss.maxHealth);
+            const bossFillW = bossW * bossHpPercentage;
+            
+            if (bossFillW > 0) {
+                const bossGrad = this.ctx.createLinearGradient(0, bossY, 0, bossY + bossH);
+                bossGrad.addColorStop(0, '#ff1a1a');
+                bossGrad.addColorStop(0.5, '#990000');
+                bossGrad.addColorStop(1, '#4a0000');
+                
+                // Si está en modo furia, destellar la barra
+                if (this.boss.health < this.boss.maxHealth / 2) {
+                    const time = Date.now() / 100;
+                    if (Math.floor(time) % 2 === 0) {
+                        bossGrad.addColorStop(0.3, '#ff6666');
+                    }
+                }
+                
+                this.ctx.fillStyle = bossGrad;
+                this.ctx.fillRect(bossX, bossY, bossFillW, bossH);
+                
+                // Brillo superior
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                this.ctx.fillRect(bossX, bossY, bossFillW, bossH / 3);
+            }
+            
+            // 5. Texto de Jefe
+            this.ctx.fillStyle = '#FFE5C2';
+            this.ctx.font = 'bold 12px Georgia, serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            
+            const bossTitle = this.boss.health < this.boss.maxHealth / 2 ? "👿 EL REY DUENDE (FURIA SE DESATÓ) 👿" : "👿 EL REY DUENDE - SEÑOR DE LAS SOMBRAS 👿";
+            
+            // Sombra
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            this.ctx.fillText(bossTitle, this.canvas.width / 2 + 1, bossY + bossH / 2 + 1);
+            this.ctx.fillStyle = '#FFD700';
+            this.ctx.fillText(bossTitle, this.canvas.width / 2, bossY + bossH / 2);
+        }
+
+        // --- HUD: PANTALLA DE INTRODUCCIÓN NARRATIVA (LORE) ---
+        if (this.storyIntroActive && !this.gameOver) {
+            const introW = Math.min(this.canvas.width * 0.7, 600);
+            const introH = 360;
+            const introX = this.canvas.width / 2 - introW / 2;
+            const introY = this.canvas.height / 2 - introH / 2;
+            
+            // Oscurecer fondo detrás del pergamino
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // Dibujar pergamino medieval
+            this.ctx.fillStyle = '#1A1005'; // Marco oscuro
+            this.roundRect(introX - 6, introY - 6, introW + 12, introH + 12, 10);
+            this.ctx.fill();
+            
+            this.ctx.fillStyle = '#B8860B'; // Borde dorado
+            this.roundRect(introX - 3, introY - 3, introW + 6, introH + 6, 8);
+            this.ctx.fill();
+            
+            // Fondo color pergamino
+            const scrollGrad = this.ctx.createLinearGradient(introX, introY, introX, introY + introH);
+            scrollGrad.addColorStop(0, '#FFE8D1');
+            scrollGrad.addColorStop(0.5, '#F5D3B3');
+            scrollGrad.addColorStop(1, '#E6BE9C');
+            this.ctx.fillStyle = scrollGrad;
+            this.roundRect(introX, introY, introW, introH, 6);
+            this.ctx.fill();
+            
+            // Detalles de pergamino enrollado en los bordes
+            this.ctx.fillStyle = '#8B5A2B';
+            this.ctx.fillRect(introX - 10, introY - 5, 8, introH + 10);
+            this.ctx.fillRect(introX + introW + 2, introY - 5, 8, introH + 10);
+            
+            // Texto del lore
+            this.ctx.font = 'bold 20px Georgia, serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillStyle = '#3A200A'; // Marrón oscuro medieval
+            this.ctx.fillText("⚔️ CRÓNICAS DE PIXELIA ⚔️", this.canvas.width / 2, introY + 40);
+            
+            // Adorno inferior del título
+            this.ctx.strokeStyle = '#8B5A2B';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.moveTo(introX + 50, introY + 55);
+            this.ctx.lineTo(introX + introW - 50, introY + 55);
+            this.ctx.stroke();
+            
+            // Mensaje del Lore (párrafo)
+            this.ctx.font = 'italic 15px Georgia, serif';
+            this.ctx.fillStyle = '#4A2B0F';
+            const lines = [
+                "El próspero Reino de Pixelia ha sido invadido por las",
+                "hordas oscuras del temible REY DUENDE, quien se ha",
+                "apoderado de las tierras y del gran Castillo ancestral.",
+                "",
+                "Solo tú, valiente Caballero armado con la ESPADA DE FE,",
+                "puedes atravesar este largo y peligroso viaje para purgar",
+                "el mal, derrotar al usurpador y devolver la paz a tu hogar.",
+                "",
+                "¡CUIDADO! Las hogueras medievales en el camino guardarán",
+                "tu alma. ¡Que la fe guíe tu acero!"
+            ];
+            
+            let textY = introY + 85;
+            for (const line of lines) {
+                this.ctx.fillText(line, this.canvas.width / 2, textY);
+                textY += 20;
+            }
+            
+            // Mensaje para continuar
+            const pulse = Date.now() / 250;
+            this.ctx.font = 'bold 11px Georgia, serif';
+            this.ctx.fillStyle = `rgba(139, 26, 26, ${0.5 + Math.sin(pulse) * 0.4})`;
+            this.ctx.fillText("PRESIONA CUALQUIER TECLA O HAZ CLIC PARA EMPEZAR LA AVENTURA", this.canvas.width / 2, introY + introH - 25);
         }
     }
 
@@ -1585,7 +2194,7 @@ export class StoryMode {
 
             if (!this.gameOver) {
                 this.handleInput(); // Siempre llamar handleInput para poder pausar/reanudar
-                if (!this.paused) {
+                if (!this.paused && !this.storyIntroActive) {
                     // Actualizar animaciones
                     this.updateAnimations(deltaTime);
                     this.updatePhysics(deltaTime);
@@ -1852,6 +2461,12 @@ export class StoryMode {
         });
 
         this.canvas.addEventListener('click', (e) => {
+            if (this.storyIntroActive) {
+                this.storyIntroActive = false;
+                this.levelStartTime = Date.now();
+                return;
+            }
+
             if (!this.gameOver && !this.victory) return;
 
             const rect = this.canvas.getBoundingClientRect();
@@ -1887,18 +2502,48 @@ export class StoryMode {
     }
 
     restartGame() {
-        console.log('Reiniciando el juego desde cero...');
-        // Reiniciar estados principales
-        this.gameOver = false;
-        this.victory = false;
-        this.paused = false;
-        this.score = 0;
-
+        console.log('Reiniciando el juego...');
+        
         // Detener audio de muerte
         if (this.deathAudio) {
             this.deathAudio.pause();
             this.deathAudio.currentTime = 0;
         }
+
+        // Si tenemos un checkpoint activo, reaparecer en el checkpoint
+        if (this.lastActiveCheckpoint) {
+            this.gameOver = false;
+            this.victory = false;
+            this.paused = false;
+            
+            // Reaparecer con salud completa y en la posición de la última hoguera
+            this.player.health = this.player.maxHealth;
+            this.player.displayHealth = this.player.maxHealth;
+            this.player.x = this.lastActiveCheckpoint.x;
+            this.player.y = this.lastActiveCheckpoint.y;
+            this.player.velocityX = 0;
+            this.player.velocityY = 0;
+            
+            // Asegurarse de desbloquear la cámara y limpiar jefes si murió allí
+            this.cameraLocked = false;
+            this.bossActive = false;
+            this.boss = null;
+            
+            // Limpiar enemigos y proyectiles locales
+            this.enemies = [];
+            this.projectiles = [];
+            this.particles = [];
+            this.enemySpawnTimer = 0;
+            
+            console.log(`Reaparecido en el último checkpoint: x = ${this.player.x}`);
+            return;
+        }
+
+        // Si no hay checkpoint activo, reiniciar desde el principio
+        this.gameOver = false;
+        this.victory = false;
+        this.paused = false;
+        this.score = 0;
 
         // Reiniciar cronómetro
         this.levelStartTime = Date.now();
@@ -1916,6 +2561,16 @@ export class StoryMode {
         this.playerStillTimer = 0;
         this.lastPlayerX = this.player.x;
 
+        // Limpiar checkpoints
+        for (const checkpoint of this.checkpoints) {
+            checkpoint.active = false;
+        }
+        this.lastActiveCheckpoint = null;
+        this.cameraLocked = false;
+        this.bossActive = false;
+        this.bossDefeated = false;
+        this.boss = null;
+
         // Limpiar arrays
         this.enemies = [];
         this.gems = [];
@@ -1926,7 +2581,7 @@ export class StoryMode {
         this.enemySpawnTimer = 0;
         this.gemSpawnTimer = 0;
 
-        console.log('Juego reiniciado con éxito.');
+        console.log('Juego reiniciado con éxito desde el inicio.');
     }
 
     returnToMenu() {

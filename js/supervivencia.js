@@ -356,8 +356,6 @@ export class SupervivenciaGame {
             { x: 9050, y: groundY - 110, width: 110, height: 20 },
             { x: 9250, y: groundY - 140, width: 100, height: 20 },
             { x: 9150, y: groundY - 210, width: 85, height: 20 },
-            { x: 9500, y: groundY - 90, width: 150, height: 20 },
-            { x: 9700, y: groundY - 65, width: 130, height: 20 },
         ];
 
         floatingPlatforms.forEach(platform => {
@@ -946,8 +944,8 @@ export class SupervivenciaGame {
         const enemy = {
             x: spawnX,
             y: groundY,
-            width: 100,
-            height: 150,
+            width: 40,  // Ajustado al tamaño del personaje (40)
+            height: 60, // Ajustado al tamaño del personaje (60)
             velocityX: 0,
             velocityY: 0,
             color: '#9400D3',
@@ -1152,9 +1150,9 @@ export class SupervivenciaGame {
         // Dibujar enemigos con diseño de duende
         for (const enemy of this.enemies) {
             if (this.duendeImageLoaded) {
-                // Duende más grande y proporcional al jugador
-                const duendeWidth = 100;  // Ancho aumentado para mejor proporción
-                const duendeHeight = 150; // Alto proporcional (1.5x el ancho)
+                // Escala a 100x150 para acoplarlo exactamente al tamaño visual del personaje.
+                const duendeWidth = 100;
+                const duendeHeight = 150;
 
                 // Determinar si el enemigo debe voltear
                 // Según la imagen, parece que el duende mira a la derecha por defecto.
@@ -1165,8 +1163,13 @@ export class SupervivenciaGame {
 
                 this.ctx.save();
 
+                // Centrar horizontalmente sobre el hitbox
                 const drawX = enemyCenterX - duendeWidth / 2;
-                const drawY = enemy.y;
+                
+                // Desplazar el sprite hacia abajo para que los pies toquen el suelo y no flote
+                // debido al espacio transparente en la parte inferior del frame del sprite sheet.
+                const offsetY = duendeHeight * 0.12;
+                const drawY = (enemy.y + enemy.height) - duendeHeight + offsetY;
 
                 if (enemyFacingLeft) {
                     // Voltear horizontalmente para mirar a la izquierda usando el centro del enemigo
@@ -1195,7 +1198,7 @@ export class SupervivenciaGame {
                 const hpBarWidth = 60;
                 const hpBarHeight = 8;
                 const hpBarX = enemyCenterX - hpBarWidth / 2;
-                const hpBarY = enemy.y - 15; // Un poco por encima del duende
+                const hpBarY = drawY - 12; // Posicionar siempre un poco por encima del sprite visible en lugar del hitbox
 
                 // 1. Marco de hierro/madera oscura
                 this.ctx.fillStyle = '#1a1105';
