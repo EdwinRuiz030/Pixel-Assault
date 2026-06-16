@@ -116,19 +116,9 @@ h1 {
     position: relative;
 }
 
-h1::before {
-    content: attr(data-text);
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    background: linear-gradient(180deg, #8B4513 0%, #654321 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-fill-color: transparent;
-    z-index: -1;
-    opacity: 0.7;
-}
+
+/* Se ha eliminado h1::before para quitar las sombras duplicadas/desalineadas del título principal */
+
 
 h2 {
     font-size: 3rem;

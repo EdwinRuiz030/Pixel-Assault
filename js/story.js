@@ -1809,8 +1809,8 @@ export class StoryMode {
             // Offset para centrar el sprite en el collider
             const offsetX = playerCenterX - (scaledWidth / 2);
             // El collider tiene 60 de alto, el sprite es más grande, alineamos a nivel inferior
-            // Se le suma 15 para que los pies toquen correctamente el suelo y no floten
-            const offsetY = (this.player.y + this.player.height) - scaledHeight + 15;
+            // Ajustado a + 7 (el punto medio exacto) para que pise perfectamente sobre el pasto (tanto en el piso como en plataformas) sin hundirse ni flotar
+            const offsetY = (this.player.y + this.player.height) - scaledHeight + 7;
 
             this.ctx.drawImage(
                 this.characterSprite,
