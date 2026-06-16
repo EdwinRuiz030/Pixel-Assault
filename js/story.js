@@ -1612,7 +1612,7 @@ export class StoryMode {
 
                 // Offset vertical para que la colisión invisible (pies) encaje mejor con el dibujo
                 // Ajusta este numerito si aún ves que flota (mayor = imagen más arriba)
-                const offsetY = 30;
+                const offsetY = 27;
 
                 this.ctx.drawImage(
                     this.platformsImage,
@@ -1661,7 +1661,7 @@ export class StoryMode {
                 
                 // Desplazar el sprite hacia abajo para que los pies toquen el suelo y no flote
                 // debido al espacio transparente en la parte inferior del frame del sprite sheet.
-                const offsetY = duendeHeight * 0.12;
+                const offsetY = duendeHeight * 0.08; // Ajusta este valor para subir o bajar el sprite según sea necesario
                 const drawY = (enemy.y + enemy.height) - duendeHeight + offsetY;
 
                 if (enemyFacingLeft) {

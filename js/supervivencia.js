@@ -1157,7 +1157,14 @@ export class SupervivenciaGame {
                 
                 // Desplazar el sprite hacia abajo para que los pies toquen el suelo y no flote
                 // debido al espacio transparente en la parte inferior del frame del sprite sheet.
-                const offsetY = duendeHeight * 0.12;
+                // Ajustado para que la base del pie coincida exactamente con la base del jugador.
+                // El jugador en modo supervivencia tiene un offset de +15 con frame de 192px (31px vacíos al fondo en spritesheet, escalado por 0.8)
+                // lo que resulta en pies a (y + height) - 9.8px.
+                // Para el duende, el espacio vacío al fondo es de 41px en spritesheet de 256px.
+                // Escalando, el espacio vacío real es duendeHeight * (41 / 256).
+                // Para que los pies queden en la misma posición relativa (-9.8px), sumamos ese valor.
+                const emptySpaceBottom = duendeHeight * (41 / 256);
+                const offsetY = emptySpaceBottom - 9.8;
                 const drawY = (enemy.y + enemy.height) - duendeHeight + offsetY;
 
                 if (enemyFacingLeft) {
@@ -1302,8 +1309,8 @@ export class SupervivenciaGame {
             // Offset para centrar el sprite en el collider
             const offsetX = playerCenterX - (scaledWidth / 2);
             // El collider tiene 60 de alto, el sprite es más grande, alineamos a nivel inferior
-            // Ajustado a + 7 (el punto medio exacto) para que pise perfectamente sobre el pasto (tanto en el piso como en plataformas) sin hundirse ni flotar
-            const offsetY = (this.player.y + this.player.height) - scaledHeight + 7;
+            // Se le suma 15 para que los pies toquen correctamente el suelo y no floten
+            const offsetY = (this.player.y + this.player.height) - scaledHeight + 15;
 
             this.ctx.drawImage(
                 this.characterSprite,
