@@ -304,6 +304,7 @@ export class StoryMode {
             return;
         }
 
+        this.loadUpgrades();
         this.setupControls();
         this.setupMouseControls();
         this.setupTouchControls();
@@ -311,6 +312,38 @@ export class StoryMode {
         this.gameLoop();
 
         console.log('Constructor StoryMode completado - Canvas listo');
+    }
+
+    loadUpgrades() {
+        this.healingTokensOwned = parseInt(localStorage.getItem('storyHealingTokens') || '0');
+        this.goldCrossbowsOwned = parseInt(localStorage.getItem('storyGoldCrossbows') || '0');
+        this.armorLevel = parseInt(localStorage.getItem('storyArmorLevel') || '0');
+        this.armorDurability = this.armorLevel > 0 ? 3 : 0;
+        this.goldCrossbowActive = false;
+        this.goldCrossbowTimer = 0;
+    }
+
+    useHealingToken() {
+        if (this.gameOver || this.paused || this.victory || this.storyIntroActive) return;
+        if (this.healingTokensOwned > 0 && this.player.health < this.player.maxHealth) {
+            this.healingTokensOwned--;
+            localStorage.setItem('storyHealingTokens', this.healingTokensOwned);
+            this.player.health = Math.min(this.player.maxHealth, this.player.health + 50);
+            this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height - 30, '#32CD32'); // Verdes
+            console.log('Token de curación usado. Restantes:', this.healingTokensOwned);
+        }
+    }
+
+    useGoldCrossbow() {
+        if (this.gameOver || this.paused || this.victory || this.storyIntroActive) return;
+        if (this.goldCrossbowsOwned > 0 && !this.goldCrossbowActive) {
+            this.goldCrossbowsOwned--;
+            localStorage.setItem('storyGoldCrossbows', this.goldCrossbowsOwned);
+            this.goldCrossbowActive = true;
+            this.goldCrossbowTimer = 5000; // 5 segundos
+            this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height - 30, '#FFD700'); // Doradas
+            console.log('Ballesta de oro usada. Cargas restantes:', this.goldCrossbowsOwned);
+        }
     }
 
     generatePlatforms() {
@@ -468,6 +501,14 @@ export class StoryMode {
                 return;
             }
             this.keys[e.code] = true;
+
+            // Uso de consumibles comprados
+            if (e.code === 'KeyH') {
+                this.useHealingToken();
+            }
+            if (e.code === 'KeyB' || e.code === 'KeyV') {
+                this.useGoldCrossbow();
+            }
         });
 
         window.addEventListener('keyup', (e) => {
@@ -581,17 +622,39 @@ export class StoryMode {
         const projectile = {
             x: this.player.x + (this.player.facing > 0 ? this.player.width / 2 : -this.player.width / 2),
             y: this.player.y,
-            width: 10,
-            height: 5,
-            velocityX: this.player.facing * 8,
+            width: this.goldCrossbowActive ? 15 : 10,
+            height: this.goldCrossbowActive ? 7 : 5,
+            velocityX: this.player.facing * (this.goldCrossbowActive ? 11 : 8),
             velocityY: 0,
-            color: this.player.color,
+            color: this.goldCrossbowActive ? '#FFD700' : this.player.color,
+            isGolden: this.goldCrossbowActive,
             owner: 'player'
         };
         this.projectiles.push(projectile);
     }
 
     updatePhysics(deltaTime) {
+        // Actualizar temporizador de ballesta de oro
+        if (this.goldCrossbowActive) {
+            this.goldCrossbowTimer -= deltaTime;
+            if (this.goldCrossbowTimer <= 0) {
+                this.goldCrossbowActive = false;
+                this.goldCrossbowTimer = 0;
+            }
+            if (Math.random() < 0.25) {
+                const px = this.player.x + Math.random() * this.player.width;
+                const py = this.player.y + Math.random() * this.player.height;
+                this.particles.push({
+                    x: px,
+                    y: py,
+                    velocityX: (Math.random() - 0.5) * 2,
+                    velocityY: -Math.random() * 2,
+                    color: '#FFD700',
+                    life: 80
+                });
+            }
+        }
+
         // Factor de tiempo normalizado a 60fps (16.67ms por frame)
         // Se limita a 50ms para evitar saltos de física en picos de lag
         const dt = Math.min(deltaTime, 50) / 16.67;
@@ -701,10 +764,11 @@ export class StoryMode {
                 const enemy = this.enemies[i];
                 if (this.checkCollision(projectile, enemy)) {
                     // Restar vida al enemigo
-                    enemy.health--;
+                    const dmg = projectile.isGolden ? 2 : 1;
+                    enemy.health -= dmg;
 
                     // Crear partículas de impacto
-                    this.createParticles(projectile.x, projectile.y, '#FF00FF');
+                    this.createParticles(projectile.x, projectile.y, projectile.isGolden ? '#FFD700' : '#FF00FF');
 
                     if (enemy.health <= 0) {
                         if (enemy.isBoss) {
@@ -733,6 +797,8 @@ export class StoryMode {
                             this.player.enemiesDefeated++;
                             this.score += 1000; // Puntuación de Jefe
                             this.player.gems += 50; // Oro de Jefe
+                            const currentGold = parseInt(localStorage.getItem('storyGold') || '0');
+                            localStorage.setItem('storyGold', currentGold + 50);
                         }
                     }
                     return false;
@@ -928,12 +994,37 @@ export class StoryMode {
             if (this.checkCollision(enemy, this.player)) {
                 const now = Date.now();
                 if (now - this.player.lastDamageTime > this.player.invincibilityDuration) {
-                    // Daño base de 10
-                    const scaledDamage = 10;
+                    let damageReduction = 0;
+                    let useArmor = false;
 
+                    if (this.armorLevel > 0 && this.armorDurability > 0) {
+                        useArmor = true;
+                        if (this.armorLevel === 1) damageReduction = 0.10;
+                        else if (this.armorLevel === 2) damageReduction = 0.25;
+                        else if (this.armorLevel === 3) damageReduction = 0.40;
+                        
+                        this.armorDurability--;
+                    }
+
+                    const scaledDamage = 10 * (1 - damageReduction);
                     this.player.health -= scaledDamage;
                     this.player.lastDamageTime = now;
-                    this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
+
+                    if (useArmor) {
+                        // Partículas de metal (armadura)
+                        this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#A9A9A9');
+                        this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
+                        
+                        if (this.armorDurability === 0) {
+                            // Efecto visual de armadura rota: muchas partículas de metal
+                            for (let p = 0; p < 2; p++) {
+                                this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#A9A9A9');
+                            }
+                            console.log("¡Armadura destruida!");
+                        }
+                    } else {
+                        this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
+                    }
                 }
             }
         }
@@ -1003,6 +1094,8 @@ export class StoryMode {
             const pickupDistance = 50;
             if (distance < pickupDistance) {
                 this.player.gems += 5;
+                const currentGold = parseInt(localStorage.getItem('storyGold') || '0');
+                localStorage.setItem('storyGold', currentGold + 5);
                 this.score += 50;
                 this.createParticles(gem.x + gem.width / 2, gem.y + gem.height / 2, '#FFD700');
                 this.gems.splice(i, 1);
@@ -1739,6 +1832,10 @@ export class StoryMode {
 
         // Dibujar proyectiles con Espada de Fe (horizontal)
         for (const projectile of this.projectiles) {
+            if (projectile.isGolden) {
+                // Dibujar un resplandor dorado alrededor del proyectil
+                this.drawColoredGlow(this.ctx, projectile.x + projectile.width / 2, projectile.y + projectile.height / 2, 25, 'rgba(255, 215, 0, 0.6)');
+            }
             if (this.swordImageLoaded) {
                 // Dibujar Espada de Fe como proyectil horizontal
                 const swordWidth = 30;
@@ -2087,6 +2184,49 @@ export class StoryMode {
             this.ctx.fillText(`🪙 Oro: ${this.player.gems}`, barX + 1, barY + height + 31);
             this.ctx.fillStyle = '#FFD700';
             this.ctx.fillText(`🪙 Oro: ${this.player.gems}`, barX, barY + height + 30);
+
+            // --- HUD DE MEJORAS COMPRADAS ---
+            // Tokens de curación (H)
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillText(`💚 Cura (H): ${this.healingTokensOwned}`, barX + 1, barY + height + 51);
+            this.ctx.fillStyle = '#32CD32'; // Verde
+            this.ctx.fillText(`💚 Cura (H): ${this.healingTokensOwned}`, barX, barY + height + 50);
+
+            // Ballestas de oro (B)
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillText(`🏹 Ballesta (B): ${this.goldCrossbowsOwned}`, barX + 1, barY + height + 71);
+            this.ctx.fillStyle = '#FFE5C2';
+            this.ctx.fillText(`🏹 Ballesta (B): ${this.goldCrossbowsOwned}`, barX, barY + height + 70);
+
+            // Armadura
+            let armorText = "";
+            let armorColor = "#888888";
+            if (this.armorLevel > 0) {
+                if (this.armorDurability > 0) {
+                    armorText = `🛡️ Armadura Lvl ${this.armorLevel}: ${this.armorDurability}/3`;
+                    armorColor = "#C0C0C0"; // Plateado
+                } else {
+                    armorText = `🛡️ Armadura Lvl ${this.armorLevel}: ROTA 💥`;
+                    armorColor = "#ff4d4d"; // Rojo
+                }
+            } else {
+                armorText = `🛡️ Armadura: Ninguna`;
+            }
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillText(armorText, barX + 1, barY + height + 91);
+            this.ctx.fillStyle = armorColor;
+            this.ctx.fillText(armorText, barX, barY + height + 90);
+
+            // Indicador de ballesta de oro activa
+            if (this.goldCrossbowActive) {
+                const pulse = Math.abs(Math.sin(Date.now() / 200));
+                const secondsLeft = (this.goldCrossbowTimer / 1000).toFixed(1);
+                const activeText = `⚡ BALLESTA ACTIVA: ${secondsLeft}s`;
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.fillText(activeText, barX + 1, barY + height + 111);
+                this.ctx.fillStyle = `rgba(255, 215, 0, ${0.6 + pulse * 0.4})`; // Dorado parpadeante/palpitante
+                this.ctx.fillText(activeText, barX, barY + height + 110);
+            }
 
             this.ctx.restore();
 
@@ -2603,6 +2743,7 @@ export class StoryMode {
 
     restartGame() {
         console.log('Reiniciando el juego...');
+        this.loadUpgrades();
         
         // Detener audio de muerte
         if (this.deathAudio) {

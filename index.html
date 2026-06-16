@@ -33,6 +33,11 @@
                     <span class="button-13-background"></span>
                     <span class="button-13-border"></span>
                 </button>
+                <button id="menu-shop-btn" class="button-13" role="button">
+                    <span class="text">TIENDA</span>
+                    <span class="button-13-background"></span>
+                    <span class="button-13-border"></span>
+                </button>
                 <button id="controls-btn" class="button-13" role="button">
                     <span class="text">CONTROLES</span>
                     <span class="button-13-background"></span>
@@ -76,6 +81,8 @@
                         <div class="control-item"><span>Saltar</span><span>⬆️ / W / ESPACIO</span></div>
                         <div class="control-item"><span>Atacar</span><span>F</span></div>
                         <div class="control-item"><span>Pausar</span><span>P / ESC</span></div>
+                        <div class="control-item"><span>Usar Cura</span><span>H</span></div>
+                        <div class="control-item"><span>Usar Ballesta</span><span>B / V</span></div>
                     </div>
                 </div>
                 
@@ -91,6 +98,69 @@
             </div>
             
             <button id="back-to-menu" class="button-13" role="button">
+                <span class="text">VOLVER AL MENÚ</span>
+                <span class="button-13-background"></span>
+                <span class="button-13-border"></span>
+            </button>
+        </div>
+
+        <!-- Pantalla de la Tienda de Mejoras -->
+        <div id="shop-menu" class="screen hidden" style="background: rgba(0, 0, 0, 0.9);">
+            <h2>TIENDA DE MEJORAS</h2>
+            
+            <div class="shop-gold-container">
+                <span class="shop-gold-label">🪙 ORO DISPONIBLE:</span>
+                <span id="shop-gold-count" class="shop-gold-val">0</span>
+            </div>
+            
+            <div class="shop-grid">
+                <!-- Tarjeta: Token de Curación -->
+                <div class="shop-item-card">
+                    <h3>💚 Token de Curación</h3>
+                    <p>Cura 50 HP al instante. Se activa en juego con la tecla 'H'.</p>
+                    <div class="shop-item-controls">
+                        <span>Precio: 25 🪙</span>
+                        <span>Posees: <span id="shop-token-count">0</span></span>
+                    </div>
+                    <button id="buy-token-btn" class="button-13" role="button">
+                        <span class="text">Comprar</span>
+                        <span class="button-13-background"></span>
+                        <span class="button-13-border"></span>
+                    </button>
+                </div>
+                
+                <!-- Tarjeta: Ballesta de Oro -->
+                <div class="shop-item-card">
+                    <h3>🏹 Ballesta de Oro</h3>
+                    <p>Proyectiles dorados de daño doble (2 HP) por 5 segundos. Tecla 'B' o 'V'.</p>
+                    <div class="shop-item-controls">
+                        <span>Precio: 40 🪙</span>
+                        <span>Posees: <span id="shop-crossbow-count">0</span></span>
+                    </div>
+                    <button id="buy-crossbow-btn" class="button-13" role="button">
+                        <span class="text">Comprar</span>
+                        <span class="button-13-background"></span>
+                        <span class="button-13-border"></span>
+                    </button>
+                </div>
+                
+                <!-- Tarjeta: Armadura de Resistencia -->
+                <div class="shop-item-card">
+                    <h3>🛡️ Armadura de Resistencia</h3>
+                    <p>Reduce daño (Lvl 1: -10%, Lvl 2: -25%, Lvl 3: -40%). Dura 3 golpes por vida.</p>
+                    <div class="shop-item-controls">
+                        <span id="shop-armor-price-label">Precio: 50 🪙</span>
+                        <span id="shop-armor-level-label">Nivel: 0/3</span>
+                    </div>
+                    <button id="upgrade-armor-btn" class="button-13" role="button">
+                        <span class="text">Mejorar</span>
+                        <span class="button-13-background"></span>
+                        <span class="button-13-border"></span>
+                    </button>
+                </div>
+            </div>
+            
+            <button id="shop-back-btn" class="button-13" role="button">
                 <span class="text">VOLVER AL MENÚ</span>
                 <span class="button-13-background"></span>
                 <span class="button-13-border"></span>

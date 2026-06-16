@@ -11,6 +11,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const controlsScreen = document.getElementById('controls');
     const gameOverScreen = document.getElementById('game-over');
     
+    // Elementos de la Tienda
+    const menuShopBtn = document.getElementById('menu-shop-btn');
+    const shopMenuScreen = document.getElementById('shop-menu');
+    const shopBackBtn = document.getElementById('shop-back-btn');
+    const buyTokenBtn = document.getElementById('buy-token-btn');
+    const buyCrossbowBtn = document.getElementById('buy-crossbow-btn');
+    const upgradeArmorBtn = document.getElementById('upgrade-armor-btn');
+    const shopGoldCount = document.getElementById('shop-gold-count');
+    const shopTokenCount = document.getElementById('shop-token-count');
+    const shopCrossbowCount = document.getElementById('shop-crossbow-count');
+    const shopArmorPriceLabel = document.getElementById('shop-armor-price-label');
+    const shopArmorLevelLabel = document.getElementById('shop-armor-level-label');
+    
     // Botones
     const startBtn = document.getElementById('start-btn');
     const supervivenciaBtn = document.getElementById('supervivencia-btn');
@@ -96,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(screen).classList.remove('hidden');
         
         // Manejar música según la pantalla
-        if (screen === 'menu' || screen === 'controls' || screen === 'settings-menu') {
+        if (screen === 'menu' || screen === 'controls' || screen === 'settings-menu' || screen === 'shop-menu') {
             startMenuMusic();
         } else {
             menuMusic.pause();
@@ -233,6 +246,117 @@ document.addEventListener('DOMContentLoaded', () => {
             crtOverlay.classList.remove('hidden');
         } else {
             crtOverlay.classList.add('hidden');
+        }
+    });
+
+    // --- LÓGICA DE LA TIENDA DE MEJORAS ---
+
+    function updateShopUI() {
+        const gold = parseInt(localStorage.getItem('storyGold') || '0');
+        const tokens = parseInt(localStorage.getItem('storyHealingTokens') || '0');
+        const crossbows = parseInt(localStorage.getItem('storyGoldCrossbows') || '0');
+        const armorLevel = parseInt(localStorage.getItem('storyArmorLevel') || '0');
+
+        // Actualizar textos
+        shopGoldCount.textContent = gold;
+        shopTokenCount.textContent = tokens;
+        shopCrossbowCount.textContent = crossbows;
+        shopArmorLevelLabel.textContent = `Nivel: ${armorLevel}/3`;
+
+        // Calcular costo de armadura
+        let armorCost = 0;
+        if (armorLevel === 0) armorCost = 50;
+        else if (armorLevel === 1) armorCost = 100;
+        else if (armorLevel === 2) armorCost = 200;
+
+        if (armorLevel >= 3) {
+            shopArmorPriceLabel.textContent = 'MÁXIMO';
+            upgradeArmorBtn.classList.add('disabled');
+            upgradeArmorBtn.disabled = true;
+            const textSpan = upgradeArmorBtn.querySelector('.text');
+            if (textSpan) textSpan.textContent = 'MÁXIMO';
+        } else {
+            shopArmorPriceLabel.textContent = `Precio: ${armorCost} 🪙`;
+            const textSpan = upgradeArmorBtn.querySelector('.text');
+            if (textSpan) textSpan.textContent = 'MEJORAR';
+            if (gold >= armorCost) {
+                upgradeArmorBtn.classList.remove('disabled');
+                upgradeArmorBtn.disabled = false;
+            } else {
+                upgradeArmorBtn.classList.add('disabled');
+                upgradeArmorBtn.disabled = true;
+            }
+        }
+
+        // Habilitar/deshabilitar botón de tokens
+        if (gold >= 25) {
+            buyTokenBtn.classList.remove('disabled');
+            buyTokenBtn.disabled = false;
+        } else {
+            buyTokenBtn.classList.add('disabled');
+            buyTokenBtn.disabled = true;
+        }
+
+        // Habilitar/deshabilitar botón de ballestas
+        if (gold >= 40) {
+            buyCrossbowBtn.classList.remove('disabled');
+            buyCrossbowBtn.disabled = false;
+        } else {
+            buyCrossbowBtn.classList.add('disabled');
+            buyCrossbowBtn.disabled = true;
+        }
+    }
+
+    // Navegación de la tienda
+    menuShopBtn.addEventListener('click', () => {
+        showScreen('shop-menu');
+        updateShopUI();
+    });
+
+    shopBackBtn.addEventListener('click', () => {
+        showScreen('menu');
+    });
+
+    // Compras
+    buyTokenBtn.addEventListener('click', () => {
+        let gold = parseInt(localStorage.getItem('storyGold') || '0');
+        if (gold >= 25) {
+            gold -= 25;
+            let tokens = parseInt(localStorage.getItem('storyHealingTokens') || '0');
+            tokens++;
+            localStorage.setItem('storyGold', gold);
+            localStorage.setItem('storyHealingTokens', tokens);
+            updateShopUI();
+        }
+    });
+
+    buyCrossbowBtn.addEventListener('click', () => {
+        let gold = parseInt(localStorage.getItem('storyGold') || '0');
+        if (gold >= 40) {
+            gold -= 40;
+            let crossbows = parseInt(localStorage.getItem('storyGoldCrossbows') || '0');
+            crossbows++;
+            localStorage.setItem('storyGold', gold);
+            localStorage.setItem('storyGoldCrossbows', crossbows);
+            updateShopUI();
+        }
+    });
+
+    upgradeArmorBtn.addEventListener('click', () => {
+        let gold = parseInt(localStorage.getItem('storyGold') || '0');
+        let armorLevel = parseInt(localStorage.getItem('storyArmorLevel') || '0');
+        
+        let armorCost = 0;
+        if (armorLevel === 0) armorCost = 50;
+        else if (armorLevel === 1) armorCost = 100;
+        else if (armorLevel === 2) armorCost = 200;
+
+        if (armorLevel < 3 && gold >= armorCost) {
+            gold -= armorCost;
+            armorLevel++;
+            localStorage.setItem('storyGold', gold);
+            localStorage.setItem('storyArmorLevel', armorLevel);
+            updateShopUI();
         }
     });
 
