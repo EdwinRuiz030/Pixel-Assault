@@ -1,6 +1,6 @@
-import { Game } from './game.js';
-import { SupervivenciaGame } from './supervivencia.js';
-import { StoryMode } from './story.js';
+import { Game } from './game.js?v=3';
+import { SupervivenciaGame } from './supervivencia.js?v=3';
+import { StoryMode } from './story.js?v=3';
 
 // Manejador de pantallas
 document.addEventListener('DOMContentLoaded', () => {
@@ -24,6 +24,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const resumeBtn = document.getElementById('resume-btn');
     const settingsBtn = document.getElementById('settings-btn');
     const pauseMainMenuBtn = document.getElementById('pause-main-menu-btn');
+
+    // Botones e inputs de Ajustes
+    const menuSettingsBtn = document.getElementById('menu-settings-btn');
+    const settingsMenuScreen = document.getElementById('settings-menu');
+    const settingsBackBtn = document.getElementById('settings-back-btn');
+    const musicVolumeSlider = document.getElementById('music-volume-slider');
+    const musicVolumeValue = document.getElementById('music-volume-value');
+    const sfxVolumeSlider = document.getElementById('sfx-volume-slider');
+    const sfxVolumeValue = document.getElementById('sfx-volume-value');
+    const timeOfDaySelect = document.getElementById('time-of-day-select');
+    const crtFilterToggle = document.getElementById('crt-filter-toggle');
+    const crtOverlay = document.getElementById('crt-overlay');
     
     // Inicialización del juego
     let game;
@@ -47,6 +59,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
         }
     };
+
+    // Cargar y aplicar ajustes desde localStorage
+    function loadSettings() {
+        const musicVolume = localStorage.getItem('musicVolume') !== null ? parseFloat(localStorage.getItem('musicVolume')) : 0.5;
+        const sfxVolume = localStorage.getItem('sfxVolume') !== null ? parseFloat(localStorage.getItem('sfxVolume')) : 0.5;
+        const timeOfDay = localStorage.getItem('timeOfDay') || 'day';
+        const crtFilter = localStorage.getItem('crtFilter') === 'true';
+
+        // Aplicar a los controles UI
+        musicVolumeSlider.value = musicVolume;
+        musicVolumeValue.textContent = `${Math.round(musicVolume * 100)}%`;
+        sfxVolumeSlider.value = sfxVolume;
+        sfxVolumeValue.textContent = `${Math.round(sfxVolume * 100)}%`;
+        timeOfDaySelect.value = timeOfDay;
+        crtFilterToggle.checked = crtFilter;
+
+        // Aplicar volumen de música
+        menuMusic.volume = musicVolume;
+
+        // Aplicar filtro CRT
+        if (crtFilter) {
+            crtOverlay.classList.remove('hidden');
+        } else {
+            crtOverlay.classList.add('hidden');
+        }
+    }
+    
+    let settingsOrigin = 'menu'; // 'menu' o 'pause'
     
     // Función para mostrar una pantalla específica
     function showScreen(screen) {
@@ -56,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(screen).classList.remove('hidden');
         
         // Manejar música según la pantalla
-        if (screen === 'menu' || screen === 'controls') {
+        if (screen === 'menu' || screen === 'controls' || screen === 'settings-menu') {
             startMenuMusic();
         } else {
             menuMusic.pause();
@@ -74,8 +114,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (storyMode) {
                     storyMode.stop();
                 }
+                // Obtener ajustes actuales
+                const currentSettings = {
+                    sfxVolume: parseFloat(sfxVolumeSlider.value),
+                    timeOfDay: timeOfDaySelect.value
+                };
                 // Crear nueva instancia del modo historia
-                storyMode = new StoryMode();
+                storyMode = new StoryMode(currentSettings);
                 if (storyMode.canvas && storyMode.ctx) {
                     storyMode.start();
                 }
@@ -88,8 +133,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (supervivenciaGame) {
                 supervivenciaGame.stop();
             }
+            // Obtener ajustes actuales
+            const currentSettings = {
+                sfxVolume: parseFloat(sfxVolumeSlider.value),
+                timeOfDay: timeOfDaySelect.value
+            };
             // Crear nueva instancia del juego
-            supervivenciaGame = new SupervivenciaGame();
+            supervivenciaGame = new SupervivenciaGame(currentSettings);
             if (supervivenciaGame.canvas && supervivenciaGame.ctx) {
                 supervivenciaGame.start();
             }
@@ -111,26 +161,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { once: true });
     }
     
-    // Función para mostrar aviso de 'Próximamente'
-    function showComingSoon() {
-        // Crear el elemento si no existe
-        let notice = document.querySelector('.coming-soon-notice');
-        if (!notice) {
-            notice = document.createElement('div');
-            notice.className = 'coming-soon-notice';
-            notice.innerHTML = `<div class="notice-content"><span>⚔️</span> PRÓXIMAMENTE <span>⚔️</span></div>`;
-            document.body.appendChild(notice);
-        }
-        
-        // Mostrar el aviso
-        notice.classList.add('show');
-        
-        // Ocultar después de 3 segundos
-        setTimeout(() => {
-            notice.classList.remove('show');
-        }, 3000);
-    }
-    
     // Manejadores de eventos
     startBtn.addEventListener('click', () => showScreen('game'));
     supervivenciaBtn.addEventListener('click', () => showScreen('supervivencia'));
@@ -139,6 +169,76 @@ document.addEventListener('DOMContentLoaded', () => {
     playAgainBtn.addEventListener('click', () => showScreen('game'));
     mainMenuBtn.addEventListener('click', () => showScreen('menu'));
     
+    // Panel de Ajustes
+    menuSettingsBtn.addEventListener('click', () => {
+        settingsOrigin = 'menu';
+        showScreen('settings-menu');
+    });
+
+    settingsBtn.addEventListener('click', () => {
+        settingsOrigin = 'pause';
+        pauseMenuScreen.classList.add('hidden');
+        settingsMenuScreen.classList.remove('hidden');
+    });
+
+    settingsBackBtn.addEventListener('click', () => {
+        if (settingsOrigin === 'pause') {
+            // Regresar al juego y mostrar menú de pausa sin reiniciar partida
+            settingsMenuScreen.classList.add('hidden');
+            pauseMenuScreen.classList.remove('hidden');
+        } else {
+            showScreen('menu');
+        }
+    });
+
+    // Controladores de los elementos de Ajustes
+    musicVolumeSlider.addEventListener('input', (e) => {
+        const vol = parseFloat(e.target.value);
+        musicVolumeValue.textContent = `${Math.round(vol * 100)}%`;
+        menuMusic.volume = vol;
+        localStorage.setItem('musicVolume', vol);
+    });
+
+    sfxVolumeSlider.addEventListener('input', (e) => {
+        const vol = parseFloat(e.target.value);
+        sfxVolumeValue.textContent = `${Math.round(vol * 100)}%`;
+        localStorage.setItem('sfxVolume', vol);
+        
+        // Actualizar efectos de sonido de juego en tiempo real
+        if (storyMode) {
+            storyMode.setSfxVolume(vol);
+        }
+        if (supervivenciaGame) {
+            supervivenciaGame.setSfxVolume(vol);
+        }
+    });
+
+    timeOfDaySelect.addEventListener('change', (e) => {
+        const time = e.target.value;
+        localStorage.setItem('timeOfDay', time);
+        
+        // Actualizar iluminación en tiempo real
+        if (storyMode) {
+            storyMode.setTimeOfDay(time);
+        }
+        if (supervivenciaGame) {
+            supervivenciaGame.setTimeOfDay(time);
+        }
+    });
+
+    crtFilterToggle.addEventListener('change', (e) => {
+        const crt = e.target.checked;
+        localStorage.setItem('crtFilter', crt);
+        if (crt) {
+            crtOverlay.classList.remove('hidden');
+        } else {
+            crtOverlay.classList.add('hidden');
+        }
+    });
+
+    // Inicializar ajustes al cargar
+    loadSettings();
+
     // Listeners del menú de pausa
     resumeBtn.addEventListener('click', () => {
         if (storyMode && storyMode.paused) {
@@ -148,10 +248,6 @@ document.addEventListener('DOMContentLoaded', () => {
             supervivenciaGame.paused = false;
         }
         pauseMenuScreen.classList.add('hidden');
-    });
-    
-    settingsBtn.addEventListener('click', () => {
-        showComingSoon();
     });
     
     pauseMainMenuBtn.addEventListener('click', () => {

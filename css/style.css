@@ -506,4 +506,173 @@ button:not(.button-13):hover {
     #mobile-controls {
         display: none !important;
     }
+}
+
+/* ================= AJUSTES Y EFECTOS GRÁFICOS ================= */
+
+.settings-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 90%;
+    max-width: 450px;
+    margin: 20px auto;
+    background: rgba(139, 69, 19, 0.15);
+    border: 2px solid #8B4513;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.5);
+}
+
+.setting-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+}
+
+.setting-item label {
+    font-family: 'Georgia', serif;
+    font-size: 1.1rem;
+    color: #ffd700;
+    text-shadow: 1px 1px 2px #000;
+}
+
+.slider-container {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 15px;
+}
+
+.slider-container input[type="range"] {
+    flex-grow: 1;
+    height: 8px;
+    border-radius: 5px;
+    background: #555;
+    outline: none;
+    -webkit-appearance: none;
+    border: 1px solid #ffd700;
+}
+
+.slider-container input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffd700;
+    cursor: pointer;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+    border: 1px solid #8b4513;
+}
+
+.slider-container span {
+    font-family: monospace;
+    font-size: 1.1rem;
+    color: #0ff;
+    width: 50px;
+    text-align: right;
+}
+
+.medieval-select {
+    width: 100%;
+    padding: 8px 12px;
+    background: #3d220b;
+    border: 2px solid #ffd700;
+    border-radius: 5px;
+    color: #fff;
+    font-size: 1.1rem;
+    font-family: 'Georgia', serif;
+    outline: none;
+    cursor: pointer;
+}
+
+.medieval-select option {
+    background: #3d220b;
+    color: #fff;
+}
+
+.setting-item.toggle-item {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Interruptor Toggle */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 26px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #555;
+  transition: .4s;
+  border-radius: 34px;
+  border: 1px solid #ffd700;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #ffd700;
+  transition: .4s;
+  border-radius: 50%;
+  border: 1px solid #8b4513;
+}
+
+input:checked + .toggle-slider {
+  background-color: #8b4513;
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(24px);
+}
+
+/* Filtro CRT retro */
+.crt-effects {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    background-size: 100% 4px, 6px 100%;
+    pointer-events: none;
+    z-index: 9999;
+    animation: crt-flicker 0.15s infinite;
+}
+
+.crt-effects::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: radial-gradient(circle, rgba(18, 16, 16, 0) 60%, rgba(0, 0, 0, 0.4) 100%);
+    pointer-events: none;
+}
+
+@keyframes crt-flicker {
+    0% { opacity: 0.985; }
+    50% { opacity: 1; }
+    100% { opacity: 0.99; }
 }

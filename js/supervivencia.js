@@ -1,7 +1,9 @@
 // Clase para el Modo Historia
 export class SupervivenciaGame {
-    constructor() {
+    constructor(settings = {}) {
         console.log('=== INICIO CONSTRUCTOR SUPERVIVENCIA GAME ===');
+        this.sfxVolume = settings.sfxVolume !== undefined ? settings.sfxVolume : 0.5;
+        this.timeOfDay = settings.timeOfDay || 'day';
 
         // Configuración del juego
         this.config = {
@@ -253,6 +255,7 @@ export class SupervivenciaGame {
 
         // Inicializar Audio de Muerte
         this.deathAudio = new Audio('songs/Death Is Just Another Path.mp3');
+        this.deathAudio.volume = this.sfxVolume;
 
         // Inicialización
         if (!this.canvas || !this.ctx) {
@@ -449,24 +452,9 @@ export class SupervivenciaGame {
         }
 
         // Movimiento horizontal — se bloquea durante la animación de ataque
-        // pero si el jugador presiona una tecla de movimiento, cancela el ataque
         if (this.animationState === 'attacking') {
-            if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
-                // Cancelar animación de ataque y mover a la izquierda
-                this.animationState = 'walking';
-                this.animationFrame = 0;
-                this.player.velocityX = -this.config.playerSpeed;
-                this.player.facing = -1;
-            } else if (this.keys['KeyD'] || this.keys['ArrowRight']) {
-                // Cancelar animación de ataque y mover a la derecha
-                this.animationState = 'walking';
-                this.animationFrame = 0;
-                this.player.velocityX = this.config.playerSpeed;
-                this.player.facing = 1;
-            } else {
-                // Sin tecla de movimiento: detener al personaje mientras ataca
-                this.player.velocityX = 0;
-            }
+            // Detener completamente el movimiento horizontal mientras ataca
+            this.player.velocityX = 0;
         } else if (this.keys['KeyA'] || this.keys['ArrowLeft'] || this.touchKeys['left']) {
             this.player.velocityX = -this.config.playerSpeed;
             this.player.facing = -1;
@@ -538,6 +526,7 @@ export class SupervivenciaGame {
         this.animationState = 'attacking';
         this.animationFrame = 0; // Reiniciar frame de ataque
         this.attackAnimationTimer = Date.now(); // Guardar tiempo de inicio de ataque
+        this.player.velocityX = 0; // Detener movimiento horizontal inmediatamente al disparar
 
         const projectile = {
             x: this.player.x + (this.player.facing > 0 ? this.player.width / 2 : -this.player.width / 2),
@@ -1346,6 +1335,109 @@ export class SupervivenciaGame {
         // Restaurar estado del contexto (quitar cámara)
         this.ctx.restore();
 
+        // --- ILUMINACIÓN DINÁMICA ---
+        if (this.timeOfDay === 'sunset' || this.timeOfDay === 'night') {
+            if (!this.lightingCanvas) {
+                this.lightingCanvas = document.createElement('canvas');
+                this.lightingCtx = this.lightingCanvas.getContext('2d');
+            }
+            if (this.lightingCanvas.width !== this.canvas.width || this.lightingCanvas.height !== this.canvas.height) {
+                this.lightingCanvas.width = this.canvas.width;
+                this.lightingCanvas.height = this.canvas.height;
+            }
+
+            const lCtx = this.lightingCtx;
+            lCtx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+            // Color ambiente según la hora del día
+            if (this.timeOfDay === 'sunset') {
+                // Atardecer: tono naranja semi-transparente
+                lCtx.fillStyle = 'rgba(230, 90, 20, 0.3)';
+            } else {
+                // Noche: tono azul oscuro intenso
+                lCtx.fillStyle = 'rgba(8, 12, 28, 0.82)';
+            }
+            lCtx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+            // Carvar agujeros de luz usando Composite Operation 'destination-out'
+            lCtx.globalCompositeOperation = 'destination-out';
+
+            // Parámetros de luz según la hora del día
+            const pRadius = this.timeOfDay === 'sunset' ? 240 : 160;
+            const pIntensity = 1.0;
+
+            // Luz del jugador
+            const pScreenX = this.player.x - this.camera.x + this.player.width / 2;
+            const pScreenY = this.player.y - this.camera.y + this.player.height / 2;
+            this.drawLightCircle(lCtx, pScreenX, pScreenY, pRadius, pIntensity);
+
+            // Luz de proyectiles
+            for (const proj of this.projectiles) {
+                const prScreenX = proj.x - this.camera.x + proj.width / 2;
+                const prScreenY = proj.y - this.camera.y + proj.height / 2;
+                this.drawLightCircle(lCtx, prScreenX, prScreenY, 90, 0.8);
+            }
+
+            // Luz de gemas
+            for (const gem of this.gems) {
+                const gemScreenX = gem.x - this.camera.x + gem.width / 2;
+                const gemScreenY = gem.y - this.camera.y + gem.height / 2;
+                this.drawLightCircle(lCtx, gemScreenX, gemScreenY, 70, 0.7);
+            }
+
+            // Luz de tokens de curación
+            for (const token of this.healingTokens) {
+                const tkScreenX = token.x - this.camera.x + token.width / 2;
+                const tkScreenY = token.y - this.camera.y + token.height / 2;
+                this.drawLightCircle(lCtx, tkScreenX, tkScreenY, 80, 0.8);
+            }
+
+            // Luz de partículas doradas o mágicas
+            for (const part of this.particles) {
+                if (part.color === '#FFD700' || part.color === '#FFFF00' || part.color === '#FF00FF') {
+                    const ptScreenX = part.x - this.camera.x;
+                    const ptScreenY = part.y - this.camera.y;
+                    this.drawLightCircle(lCtx, ptScreenX, ptScreenY, 30, 0.4 * (part.life / 100));
+                }
+            }
+
+            // Resetear composite
+            lCtx.globalCompositeOperation = 'source-over';
+
+            // Dibujar capa sobre el canvas principal
+            this.ctx.drawImage(this.lightingCanvas, 0, 0);
+
+            // Añadir resplandor de colores (Modo Screen para efectos mágicos brillantes)
+            this.ctx.save();
+            this.ctx.globalCompositeOperation = 'screen';
+
+            // Resplandor dorado suave en el jugador
+            this.drawColoredGlow(this.ctx, pScreenX, pScreenY, pRadius * 0.8, 'rgba(255, 215, 0, 0.15)');
+
+            // Resplandor mágico en proyectiles (magenta)
+            for (const proj of this.projectiles) {
+                const prScreenX = proj.x - this.camera.x + proj.width / 2;
+                const prScreenY = proj.y - this.camera.y + proj.height / 2;
+                this.drawColoredGlow(this.ctx, prScreenX, prScreenY, 70, 'rgba(255, 0, 255, 0.22)');
+            }
+
+            // Resplandor en las gemas (oro o turquesa)
+            for (const gem of this.gems) {
+                const gemScreenX = gem.x - this.camera.x + gem.width / 2;
+                const gemScreenY = gem.y - this.camera.y + gem.height / 2;
+                this.drawColoredGlow(this.ctx, gemScreenX, gemScreenY, 50, 'rgba(255, 215, 0, 0.2)');
+            }
+
+            // Resplandor en tokens de curación (verde)
+            for (const token of this.healingTokens) {
+                const tkScreenX = token.x - this.camera.x + token.width / 2;
+                const tkScreenY = token.y - this.camera.y + token.height / 2;
+                this.drawColoredGlow(this.ctx, tkScreenX, tkScreenY, 60, 'rgba(50, 205, 50, 0.25)');
+            }
+
+            this.ctx.restore();
+        }
+
         // UI de pausa (Fondo oscuro, los botones ahora son HTML)
         if (this.paused) {
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -2032,5 +2124,37 @@ export class SupervivenciaGame {
                 }
             });
         }
+    }
+
+    setSfxVolume(vol) {
+        this.sfxVolume = vol;
+        if (this.deathAudio) {
+            this.deathAudio.volume = vol;
+        }
+    }
+
+    setTimeOfDay(time) {
+        this.timeOfDay = time;
+    }
+
+    drawLightCircle(ctx, x, y, radius, intensity) {
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+        grad.addColorStop(0, `rgba(255, 255, 255, ${intensity})`);
+        grad.addColorStop(0.5, `rgba(255, 255, 255, ${intensity * 0.4})`);
+        grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    drawColoredGlow(ctx, x, y, radius, colorString) {
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+        grad.addColorStop(0, colorString);
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
     }
 }

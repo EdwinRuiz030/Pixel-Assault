@@ -38,6 +38,11 @@
                     <span class="button-13-background"></span>
                     <span class="button-13-border"></span>
                 </button>
+                <button id="menu-settings-btn" class="button-13" role="button">
+                    <span class="text">AJUSTES</span>
+                    <span class="button-13-background"></span>
+                    <span class="button-13-border"></span>
+                </button>
             </div>
         </div>
         
@@ -117,6 +122,49 @@
                 <span class="button-13-border"></span>
             </button>
         </div>
+
+        <div id="settings-menu" class="screen hidden" style="background: rgba(0, 0, 0, 0.85);">
+            <h2>AJUSTES</h2>
+            <div class="settings-grid">
+                <div class="setting-item">
+                    <label for="music-volume-slider">Volumen Música</label>
+                    <div class="slider-container">
+                        <input type="range" id="music-volume-slider" min="0" max="1" step="0.05" value="0.5">
+                        <span id="music-volume-value">50%</span>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label for="sfx-volume-slider">Volumen Efectos</label>
+                    <div class="slider-container">
+                        <input type="range" id="sfx-volume-slider" min="0" max="1" step="0.05" value="0.5">
+                        <span id="sfx-volume-value">50%</span>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label for="time-of-day-select">Hora del Día</label>
+                    <select id="time-of-day-select" class="medieval-select">
+                        <option value="day">Día (Brillante)</option>
+                        <option value="sunset">Atardecer (Cálido)</option>
+                        <option value="night">Noche (Oscuro y Luces)</option>
+                    </select>
+                </div>
+                <div class="setting-item toggle-item">
+                    <label for="crt-filter-toggle">Filtro Retro CRT</label>
+                    <label class="switch">
+                        <input type="checkbox" id="crt-filter-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            <button id="settings-back-btn" class="button-13" role="button">
+                <span class="text">VOLVER</span>
+                <span class="button-13-background"></span>
+                <span class="button-13-border"></span>
+            </button>
+        </div>
+
+        <!-- Capa para el efecto CRT retro -->
+        <div id="crt-overlay" class="crt-effects hidden"></div>
     </div>
 
     <!-- SVG para filtros de botones -->
@@ -136,8 +184,8 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
     
     <!-- Nuestro script principal -->
-    <script src="js/main.js" type="module"></script>
+    <script src="js/main.js?v=3" type="module"></script>
     <!-- Animación del menú -->
-    <script src="js/menu_intro.js" type="module"></script>
+    <script src="js/menu_intro.js?v=3" type="module"></script>
 </body>
 </html>
