@@ -220,6 +220,12 @@ export class StoryMode {
         this.animationSpeed = 200; // ms entre frames general (mucho más lento)
         this.walkAnimationSpeed = 100; // 200ms entre frames para correr
 
+        // Física pulida para plataformas
+        this.coyoteTimeMax = 150; // ms permitidos para saltar tras dejar el suelo
+        this.coyoteTimeCounter = 0;
+        this.jumpBufferMax = 150; // ms que se almacena el input de salto
+        this.jumpBufferCounter = 0;
+
         // Configuración del sprite sheet unificado (49 frames, índices 0 a 48)
         this.spriteConfig = {
             frameWidth: 192,
@@ -541,26 +547,29 @@ export class StoryMode {
             return;
         }
 
-        // Movimiento horizontal — se bloquea durante la animación de ataque
-        // pero si el jugador presiona una tecla de movimiento, cancela el ataque
-        if (this.animationState === 'attacking') {
-            // Detener completamente el movimiento horizontal mientras ataca
-            this.player.velocityX = 0;
-        } else if (this.keys['KeyA'] || this.keys['ArrowLeft'] || this.touchKeys['left']) {
+        // Movimiento horizontal (Permite movimiento libre durante ataque para mayor fluidez)
+        if (this.keys['KeyA'] || this.keys['ArrowLeft'] || this.touchKeys['left']) {
             this.player.velocityX = -this.config.playerSpeed;
             this.player.facing = -1;
         } else if (this.keys['KeyD'] || this.keys['ArrowRight'] || this.touchKeys['right']) {
             this.player.velocityX = this.config.playerSpeed;
             this.player.facing = 1;
         } else {
-            this.player.velocityX *= 0.8; // Fricción
+            // Aplicar menos fricción en el aire para mantener inercia (deslizamiento fluido al saltar)
+            if (!this.player.isGrounded) {
+                this.player.velocityX *= 0.92; // Inercia en el aire
+            } else {
+                this.player.velocityX *= 0.8; // Freno normal en el suelo
+            }
         }
 
-        // Salto
-        if ((this.keys['KeyW'] || this.keys['ArrowUp'] || this.keys['Space'] || this.touchKeys['jump']) && this.player.isGrounded) {
-            this.player.velocityY = -this.config.jumpPower;
-            this.player.isJumping = true;
-            this.player.isGrounded = false;
+        // Salto (registra la intención en el buffer para mayor tolerancia de timing)
+        if (this.keys['KeyW'] || this.keys['ArrowUp'] || this.keys['Space'] || this.touchKeys['jump']) {
+            this.jumpBufferCounter = this.jumpBufferMax;
+            this.keys['KeyW'] = false;
+            this.keys['ArrowUp'] = false;
+            this.keys['Space'] = false;
+            this.touchKeys['jump'] = false;
         }
 
         // Ataque
@@ -614,10 +623,13 @@ export class StoryMode {
             this.lastShootTime = currentTime;
         }
 
-        this.animationState = 'attacking';
-        this.animationFrame = 0; // Reiniciar frame de ataque
-        this.attackAnimationTimer = Date.now(); // Guardar tiempo de inicio de ataque
-        this.player.velocityX = 0; // Detener movimiento horizontal inmediatamente al disparar
+        // Solo reiniciar la animación de ataque si no estaba atacando previamente
+        // o si ya pasó suficiente tiempo (ej. 400ms) para evitar congelar el frame en disparos consecutivos rápidos
+        if (this.animationState !== 'attacking' || (Date.now() - (this.attackAnimationTimer || 0) > 400)) {
+            this.animationState = 'attacking';
+            this.animationFrame = 0; // Reiniciar frame de ataque
+            this.attackAnimationTimer = Date.now(); // Guardar tiempo de inicio de ataque
+        }
 
         const projectile = {
             x: this.player.x + (this.player.facing > 0 ? this.player.width / 2 : -this.player.width / 2),
@@ -658,6 +670,23 @@ export class StoryMode {
         // Factor de tiempo normalizado a 60fps (16.67ms por frame)
         // Se limita a 50ms para evitar saltos de física en picos de lag
         const dt = Math.min(deltaTime, 50) / 16.67;
+
+        // Actualizar Coyote Time y Jump Buffer
+        if (this.player.isGrounded) {
+            this.coyoteTimeCounter = this.coyoteTimeMax;
+        } else {
+            this.coyoteTimeCounter = Math.max(0, this.coyoteTimeCounter - deltaTime);
+        }
+        this.jumpBufferCounter = Math.max(0, this.jumpBufferCounter - deltaTime);
+
+        // Si hay una intención de salto almacenada y se puede saltar (en suelo o usando Coyote Time)
+        if (this.jumpBufferCounter > 0 && (this.player.isGrounded || this.coyoteTimeCounter > 0)) {
+            this.player.velocityY = -this.config.jumpPower;
+            this.player.isJumping = true;
+            this.player.isGrounded = false;
+            this.coyoteTimeCounter = 0; // Evitar saltos dobles consecutivos accidentales
+            this.jumpBufferCounter = 0; // Consumir el búfer
+        }
 
         // Actualizar jugador
         if (!this.player.isGrounded) {
@@ -1298,15 +1327,28 @@ export class StoryMode {
         // Guarda el estado anterior para detectar cambios de animación
         const previousState = this.animationState;
 
-        // 1. Prioridad: Ataque
+        // 1. Prioridad: Ataque (Reproduce la animación exactamente una vez, de forma no cíclica)
         if (this.animationState === 'attacking') {
-            const timeSinceAttack = Date.now() - (this.attackAnimationTimer || 0);
-            // El ataque tiene 11 frames, durará aprox 11 * 80 = 880ms
-            if (timeSinceAttack > 880) {
-                this.animationState = 'idle';
-            } else {
-                currentAnimationSpeed = 80; // Ataque más lento
+            currentAnimationSpeed = 65; // Animación de ataque más ágil (65ms por frame)
+            const animConfig = this.spriteConfig.animations.attacking;
+            const maxFrames = (animConfig.end - animConfig.start) + 1;
+
+            if (this.animationTimer >= currentAnimationSpeed) {
+                this.animationTimer = 0;
+                // Si ya se alcanzó el último frame de la animación (sprite 43)
+                if (this.animationFrame >= maxFrames - 1) {
+                    this.animationState = 'idle';
+                    this.animationFrame = 0;
+                } else {
+                    this.animationFrame++;
+                }
             }
+
+            if (previousState !== this.animationState) {
+                this.animationFrame = 0;
+                this.animationTimer = 0;
+            }
+            return;
         }
 
         // 2. Prioridad: Salto

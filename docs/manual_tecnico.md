@@ -1,9 +1,9 @@
-# Manual Técnico - Pixel Assault
+# Manual Técnico - El legado del rey
 
-Este documento describe la arquitectura técnica, la lógica de programación y la estructura de componentes del juego **Pixel Assault**.
+Este documento describe la arquitectura técnica, la lógica de programación y la estructura de componentes del juego **El legado del rey**.
 
 ## 1. Arquitectura General
-Pixel Assault está construido como una aplicación web de una sola página (SPA) utilizando **JavaScript Vanilla** (ES6+) con un enfoque basado en módulos. El renderizado se realiza mediante el elemento `<canvas>` de HTML5 utilizando un motor 2D personalizado.
+El legado del rey está construido como una aplicación web de una sola página (SPA) utilizando **JavaScript Vanilla** (ES6+) con un enfoque basado en módulos. El renderizado se realiza mediante el elemento `<canvas>` de HTML5 utilizando un motor 2D personalizado.
 
 ### Tecnologías Utilizadas:
 *   **HTML5/CSS3**: Estructura de la UI y efectos de estilo (Glassmorphism, animaciones CSS).

@@ -349,6 +349,13 @@ button:not(.button-13):hover {
     pointer-events: none;
 }
 
+#controls {
+    background-image: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url('../img/menu c.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
 #controls p {
     margin: 15px 0;
     font-size: 1.5rem;
@@ -668,6 +675,13 @@ input:checked + .toggle-slider:before {
 }
 
 /* ================= TIENDA DE MEJORAS MEDIEVAL ================= */
+
+#shop-menu {
+    background-image: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url('../img/menu t.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
 
 .shop-gold-container {
     background: rgba(139, 69, 19, 0.3);

@@ -1,6 +1,6 @@
-# Justificación del Proyecto: Pixel Assault
+# Justificación del Proyecto: El legado del rey
 
-Este documento detalla la justificación técnica, práctica y social del desarrollo de **Pixel Assault**, un videojuego web híbrido en 2D/3D con temática medieval, enfocado en el alto rendimiento, la accesibilidad multiplataforma y el diseño de experiencia de usuario (UX/UI) de nivel premium.
+Este documento detalla la justificación técnica, práctica y social del desarrollo de **El legado del rey**, un videojuego web híbrido en 2D/3D con temática medieval, enfocado en el alto rendimiento, la accesibilidad multiplataforma y el diseño de experiencia de usuario (UX/UI) de nivel premium.
 
 ---
 
@@ -8,7 +8,7 @@ Este documento detalla la justificación técnica, práctica y social del desarr
 
 El panorama de los videojuegos independientes en la web ha evolucionado a un ritmo acelerado. Los jugadores ya no solo buscan mecánicas simples, sino experiencias visualmente ricas, inmersivas y con dinámicas de juego desafiantes que puedan ejecutarse de forma instantánea sin la necesidad de instalaciones complejas. 
 
-**Pixel Assault** nace como una propuesta moderna que fusiona el encanto clásico de los juegos de plataformas y acción medievales con las tecnologías de vanguardia de la web abierta (HTML5 Canvas, Vanilla JavaScript modular y Three.js). Al operar directamente en el navegador, democratiza el acceso al entretenimiento digital interactivo de alta calidad.
+**El legado del rey** nace como una propuesta moderna que fusiona el encanto clásico de los juegos de plataformas y acción medievales con las tecnologías de vanguardia de la web abierta (HTML5 Canvas, Vanilla JavaScript modular y Three.js). Al operar directamente en el navegador, democratiza el acceso al entretenimiento digital interactivo de alta calidad.
 
 ---
 
@@ -25,7 +25,7 @@ En el contexto actual del desarrollo de videojuegos basados en web, se identific
 
 ## 3. Justificación del Proyecto
 
-**Pixel Assault** se fundamenta sobre cuatro pilares esenciales que justifican plenamente su desarrollo y su arquitectura técnica:
+**El legado del rey** se fundamenta sobre cuatro pilares esenciales que justifican plenamente su desarrollo y su arquitectura técnica:
 
 ### 3.1. Justificación Técnica: Rendimiento y Optimización Pura
 El proyecto rechaza los motores preconstruidos masivos en favor de una arquitectura híbrida de código optimizado:
@@ -44,7 +44,7 @@ El juego introduce mecánicas dinámicas que renuevan la fórmula clásica de lo
 * **Portabilidad Total:** Funciona de forma idéntica en Windows, macOS, Linux, iOS y Android, permitiendo que cualquier persona con un navegador web moderno disfrute de la experiencia.
 
 ### 3.4. Justificación Educativa y Extensibilidad
-* **Arquitectura Limpia:** La base de código de Pixel Assault sirve como un modelo pedagógico de referencia para entender la lógica interna de un motor de física personalizado, animaciones por sprite sheets en cuadrícula (7x7), y la gestión modular de estados en JavaScript sin librerías externas.
+* **Arquitectura Limpia:** La base de código de El legado del rey sirve como un modelo pedagógico de referencia para entender la lógica interna de un motor de física personalizado, animaciones por sprite sheets en cuadrícula (7x7), y la gestión modular de estados en JavaScript sin librerías externas.
 
 ---
 
@@ -64,4 +64,4 @@ Desarrollar e implementar un videojuego web híbrido en 2D/3D de plataformas y s
 
 ## 5. Conclusión
 
-**Pixel Assault** no es solo un videojuego; es un testimonio de la potencia actual de los estándares web abiertos. Logra resolver de manera elegante la brecha entre accesibilidad, fluidez técnica y riqueza visual. A través de este proyecto, se demuestra que con un diseño de software inteligente y modular, es posible crear experiencias de entretenimiento sumamente interactivas, seguras y de aspecto premium sin la sobrecarga tecnológica del software nativo convencional.
+**El legado del rey** no es solo un videojuego; es un testimonio de la potencia actual de los estándares web abiertos. Logra resolver de manera elegante la brecha entre accesibilidad, fluidez técnica y riqueza visual. A través de este proyecto, se demuestra que con un diseño de software inteligente y modular, es posible crear experiencias de entretenimiento sumamente interactivas, seguras y de aspecto premium sin la sobrecarga tecnológica del software nativo convencional.

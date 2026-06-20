@@ -1,9 +1,9 @@
-# Manual de Usuario - Pixel Assault
+# Manual de Usuario - El legado del rey
 
-¡Bienvenido a **Pixel Assault**! Prepárate para una aventura de acción y plataformas en un mundo medieval donde tu destreza con la espada y tu agilidad serán tus mejores aliadas.
+¡Bienvenido a **El legado del rey**! Prepárate para una aventura de acción y plataformas en un mundo medieval donde tu destreza con la espada y tu agilidad serán tus mejores aliadas.
 
 ## 1. Introducción
-Pixel Assault es un juego de plataformas de acción rápida. Tomas el papel de un caballero cuya misión es sobrevivir al asalto constante de hordas de duendes. Deberás moverte con precisión, recolectar gemas y resistir el tiempo suficiente para reclamar la victoria.
+El legado del rey es un juego de plataformas de acción rápida. Tomas el papel de un caballero cuya misión es sobrevivir al asalto constante de hordas de duendes. Deberás moverte con precisión, recolectar gemas y resistir el tiempo suficiente para reclamar la victoria.
 
 ## 2. Cómo Empezar
 1.  **Pantalla de Inicio**: Al cargar el juego, verás una pantalla con el mensaje "EL REINO AGUARDA TU LLEGADA". Haz clic en cualquier lugar para entrar al Menú Principal.
