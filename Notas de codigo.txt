@@ -1,0 +1,9 @@
+La animación de disparo en la hoja de sprites unificada del personaje (img/personaje_nuevo.png) comprende desde el sprite 33 hasta el sprite 43 (índices basados en 0).
+En total, son 11 frames los que componen esta animación:
+Inicio: Sprite 33
+Fin: Sprite 43
+
+La animación del personaje cuando se queda parado (idle o reposo) comprende desde el sprite 0 hasta el sprite 3 (índices basados en 0).
+En total, son 4 frames los que componen esta animación:
+Inicio: Sprite 0
+Fin: Sprite 3
