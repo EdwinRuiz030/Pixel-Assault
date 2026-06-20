@@ -1,0 +1,2 @@
+# Desactivar listado de archivos en directorios (evita explorar el contenido de las carpetas)
+Options -Indexes
