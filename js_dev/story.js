@@ -235,6 +235,7 @@ export class StoryMode {
                 idle: { start: 0, end: 3 },
                 walking: { start: 4, end: 18 },
                 jumping: { start: 19, end: 30 },
+                hurt: { start: 26, end: 27 },
                 attacking: { start: 33, end: 43 }
             }
         };
@@ -273,12 +274,12 @@ export class StoryMode {
         this.swordImageLoaded = false;
         this.swordImage.onload = () => {
             this.swordImageLoaded = true;
-            console.log('Espada de Fe cargada correctamente');
+            console.log('Flecha de Fe cargada correctamente');
         };
         this.swordImage.onerror = () => {
-            console.error('Error cargando Espada de Fe');
+            console.error('Error cargando Flecha de Fe');
         };
-        this.swordImage.src = 'img/Espada de Fe.png';
+        this.swordImage.src = 'img/flecha de fe.png';
 
         // Imagen del token
         this.tokenImage = new Image();
@@ -1038,6 +1039,9 @@ export class StoryMode {
                     const scaledDamage = 10 * (1 - damageReduction);
                     this.player.health -= scaledDamage;
                     this.player.lastDamageTime = now;
+                    this.animationState = 'hurt';
+                    this.animationFrame = 0;
+                    this.animationTimer = 0;
 
                     if (useArmor) {
                         // Partículas de metal (armadura)
@@ -1327,7 +1331,30 @@ export class StoryMode {
         // Guarda el estado anterior para detectar cambios de animación
         const previousState = this.animationState;
 
-        // 1. Prioridad: Ataque (Reproduce la animación exactamente una vez, de forma no cíclica)
+        // 1. Prioridad: Daño (Hurt)
+        if (this.animationState === 'hurt') {
+            currentAnimationSpeed = 100; // Velocidad del daño
+            const animConfig = this.spriteConfig.animations.hurt;
+            const maxFrames = (animConfig.end - animConfig.start) + 1;
+
+            if (this.animationTimer >= currentAnimationSpeed) {
+                this.animationTimer = 0;
+                if (this.animationFrame >= maxFrames - 1) {
+                    this.animationState = 'idle';
+                    this.animationFrame = 0;
+                } else {
+                    this.animationFrame++;
+                }
+            }
+
+            if (previousState !== this.animationState) {
+                this.animationFrame = 0;
+                this.animationTimer = 0;
+            }
+            return;
+        }
+
+        // 1.5. Prioridad: Ataque (Reproduce la animación exactamente una vez, de forma no cíclica)
         if (this.animationState === 'attacking') {
             currentAnimationSpeed = 65; // Animación de ataque más ágil (65ms por frame)
             const animConfig = this.spriteConfig.animations.attacking;
@@ -1352,7 +1379,7 @@ export class StoryMode {
         }
 
         // 2. Prioridad: Salto
-        if (this.animationState !== 'attacking') {
+        if (this.animationState !== 'attacking' && this.animationState !== 'hurt') {
             if (!this.player.isGrounded) {
                 this.animationState = 'jumping';
                 currentAnimationSpeed = 80; // Salto más fluido (80ms por frame)
@@ -1888,11 +1915,11 @@ export class StoryMode {
 
                 // Rotar según la dirección del disparo
                 if (projectile.velocityX > 0) {
-                    // Disparo hacia la derecha - rotar 90° para ponerla horizontal
-                    this.ctx.rotate(Math.PI / 2);
+                    // Disparo hacia la derecha
+                    this.ctx.rotate(0);
                 } else {
-                    // Disparo hacia la izquierda - rotar -90° para ponerla horizontal invertida
-                    this.ctx.rotate(-Math.PI / 2);
+                    // Disparo hacia la izquierda (rotar 180°)
+                    this.ctx.rotate(Math.PI);
                 }
 
                 // Dibujar la espada
@@ -3009,6 +3036,23 @@ export class StoryMode {
                 });
             }
         });
+
+        // Botones de consumibles especiales
+        const btnHeal = document.getElementById('btn-heal');
+        if (btnHeal) {
+            btnHeal.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.useHealingToken();
+            });
+        }
+
+        const btnCrossbow = document.getElementById('btn-crossbow');
+        if (btnCrossbow) {
+            btnCrossbow.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.useGoldCrossbow();
+            });
+        }
 
         // Botón de pausa especial
         const pauseBtn = document.getElementById('btn-pause');

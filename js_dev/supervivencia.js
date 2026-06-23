@@ -194,6 +194,7 @@ export class SupervivenciaGame {
                 idle: { start: 0, end: 3 },
                 walking: { start: 4, end: 18 },
                 jumping: { start: 19, end: 30 },
+                hurt: { start: 26, end: 27 },
                 attacking: { start: 33, end: 43 }
             }
         };
@@ -222,12 +223,12 @@ export class SupervivenciaGame {
         this.swordImageLoaded = false;
         this.swordImage.onload = () => {
             this.swordImageLoaded = true;
-            console.log('Espada de Fe cargada correctamente');
+            console.log('Flecha de Fe cargada correctamente');
         };
         this.swordImage.onerror = () => {
-            console.error('Error cargando Espada de Fe');
+            console.error('Error cargando Flecha de Fe');
         };
-        this.swordImage.src = 'img/Espada de Fe.png';
+        this.swordImage.src = 'img/flecha de fe.png';
 
         // Imagen del token
         this.tokenImage = new Image();
@@ -800,6 +801,10 @@ export class SupervivenciaGame {
 
                     this.player.health -= scaledDamage;
                     this.player.lastDamageTime = now;
+                    this.animationState = 'hurt';
+                    this.animationFrame = 0;
+                    this.animationTimer = 0;
+                    this.hurtAnimationTimer = now;
                     this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
                 }
             }
@@ -1037,7 +1042,18 @@ export class SupervivenciaGame {
         // Guarda el estado anterior para detectar cambios de animación
         const previousState = this.animationState;
 
-        // 1. Prioridad: Ataque
+        // 1. Prioridad: Daño (Hurt)
+        if (this.animationState === 'hurt') {
+            const timeSinceHurt = Date.now() - (this.hurtAnimationTimer || 0);
+            // El daño tiene 2 frames (26 y 27), durará aprox 2 * 100 = 200ms
+            if (timeSinceHurt > 200) {
+                this.animationState = 'idle';
+            } else {
+                currentAnimationSpeed = 100;
+            }
+        }
+
+        // 1.5. Prioridad: Ataque
         if (this.animationState === 'attacking') {
             const timeSinceAttack = Date.now() - (this.attackAnimationTimer || 0);
             // El ataque tiene 11 frames, durará aprox 11 * 80 = 880ms
@@ -1049,7 +1065,7 @@ export class SupervivenciaGame {
         }
 
         // 2. Prioridad: Salto
-        if (this.animationState !== 'attacking') {
+        if (this.animationState !== 'attacking' && this.animationState !== 'hurt') {
             if (!this.player.isGrounded) {
                 this.animationState = 'jumping';
                 currentAnimationSpeed = 80; // Salto más fluido (80ms por frame)
@@ -1249,11 +1265,11 @@ export class SupervivenciaGame {
 
                 // Rotar según la dirección del disparo
                 if (projectile.velocityX > 0) {
-                    // Disparo hacia la derecha - rotar 90° para ponerla horizontal
-                    this.ctx.rotate(Math.PI / 2);
+                    // Disparo hacia la derecha
+                    this.ctx.rotate(0);
                 } else {
-                    // Disparo hacia la izquierda - rotar -90° para ponerla horizontal invertida
-                    this.ctx.rotate(-Math.PI / 2);
+                    // Disparo hacia la izquierda (rotar 180°)
+                    this.ctx.rotate(Math.PI);
                 }
 
                 // Dibujar la espada

@@ -174,7 +174,7 @@ h2 {
     position: fixed;
     top: 20px;
     left: 50%;
-    transform: translateX(-50%) translateY(-100px);
+    transform: translate(-50%, calc(-100% - 30px));
     background: linear-gradient(135deg, #8b4513 0%, #3d220b 100%);
     border: 3px solid #ffd700;
     padding: 15px 40px;
@@ -186,7 +186,7 @@ h2 {
 }
 
 .coming-soon-notice.show {
-    transform: translateX(-50%) translateY(20px);
+    transform: translate(-50%, 20px);
 }
 
 .coming-soon-notice .notice-content {
@@ -356,6 +356,13 @@ button:not(.button-13):hover {
     background-repeat: no-repeat;
 }
 
+#settings-menu {
+    background-image: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url('../img/menu a.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
 #controls p {
     margin: 15px 0;
     font-size: 1.5rem;
@@ -472,6 +479,7 @@ button:not(.button-13):hover {
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     box-shadow: 0 4px 0 #3d220b;
+    touch-action: none;
 }
 
 .joy-btn:active {
@@ -795,19 +803,125 @@ input:checked + .toggle-slider:before {
     filter: grayscale(1) brightness(0.5);
 }
 
-/* Responsividad para la tienda */
-@media (max-width: 900px) {
-    .shop-grid {
-        flex-direction: column;
-        align-items: center;
-        width: 100%;
-        max-height: 50vh;
-        overflow-y: auto;
-        padding: 10px;
+/* Responsividad para la tienda y pantallas de menú SOLO en dispositivos Android */
+@media (max-width: 900px) or (max-height: 600px) {
+    /* Menú principal responsivo */
+    .android-device #menu h1 {
+        font-size: 1.8rem !important;
+        margin-bottom: 0.8rem !important;
+        letter-spacing: 3px !important;
     }
-    .shop-item-card {
-        width: 100%;
-        max-width: 400px;
+    .android-device #menu .button-13 {
+        padding: 5px 15px !important;
+        font-size: 0.9rem !important;
+        margin: 5px !important;
+        letter-spacing: 1px !important;
+    }
+
+    .android-device #controls:not(.hidden), .android-device #shop-menu:not(.hidden), .android-device #settings-menu:not(.hidden) {
+        display: block !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 20px 10px !important;
+    }
+    
+    /* Achicar títulos para ganar espacio vertical */
+    .android-device #controls h2, .android-device #shop-menu h2, .android-device #settings-menu h2 {
+        font-size: 2rem !important;
+        margin-bottom: 10px !important;
+    }
+    
+    /* Espaciado del menú de controles */
+    .android-device .controls-grid {
+        gap: 10px !important;
+    }
+    .android-device .control-section {
+        min-width: 250px !important;
+        padding: 10px !important;
+    }
+    
+    /* Ajustes para la tienda */
+    .android-device .shop-grid {
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: 15px !important;
+        width: 100% !important;
+        max-height: none !important;
+        overflow-y: visible !important;
+        padding: 10px !important;
+    }
+    .android-device .shop-item-card {
+        flex: none !important;
+        width: calc(50% - 10px) !important;
+        min-width: 240px !important;
+        max-width: 280px !important;
+        padding: 15px !important;
+    }
+    .android-device .shop-gold-container {
+        margin-bottom: 15px !important;
+        padding: 5px 15px !important;
+    }
+    
+    /* Ajustes para el panel de Ajustes */
+    .android-device .settings-grid {
+        gap: 12px !important;
+        padding: 15px !important;
+        margin: 10px auto !important;
+        max-width: 400px !important;
+    }
+    .android-device .setting-item {
+        gap: 4px !important;
+    }
+}
+
+/* Pantalla de advertencia de orientación */
+.orientation-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #0d0d0d;
+    z-index: 99999;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: #fff;
+    padding: 20px;
+}
+
+
+.warning-content h2 {
+    font-size: 2rem;
+    color: #ffd700;
+    margin: 15px 0 10px 0;
+    font-family: 'Georgia', serif;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+.warning-content p {
+    font-size: 1.1rem;
+    color: #ddd;
+    max-width: 320px;
+    line-height: 1.4;
+    margin: 0 auto;
+    font-family: Arial, sans-serif;
+}
+
+.phone-icon-animation {
+    font-size: 4rem;
+    animation: rotatePhone 2s infinite ease-in-out;
+}
+
+@keyframes rotatePhone {
+    0%, 100% {
+        transform: rotate(0deg);
+    }
+    50% {
+        transform: rotate(-90deg);
     }
 }
 

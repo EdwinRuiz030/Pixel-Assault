@@ -4,6 +4,12 @@ import { StoryMode } from './story.js?v=4';
 
 // Manejador de pantallas
 document.addEventListener('DOMContentLoaded', () => {
+    // Detectar si es un dispositivo Android y añadir la clase al body
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    if (isAndroid) {
+        document.body.classList.add('android-device');
+    }
+
     // === BLINDAJE DE SEGURIDAD CONTRA INSPECCIÓN Y COPIADO ===
     // 1. Desactivar menú contextual (clic derecho) para evitar la opción de "Inspeccionar"
     document.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -73,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const timeOfDaySelect = document.getElementById('time-of-day-select');
     const crtFilterToggle = document.getElementById('crt-filter-toggle');
     const crtOverlay = document.getElementById('crt-overlay');
+    const comingSoonNotice = document.getElementById('coming-soon-notice');
     
     // Inicialización del juego
     let game;
@@ -132,6 +139,28 @@ document.addEventListener('DOMContentLoaded', () => {
         // Mostrar la pantalla solicitada
         document.getElementById(screen).classList.remove('hidden');
         
+        // Mostrar/ocultar controles móviles según la pantalla y si es dispositivo táctil
+        const mobileControls = document.getElementById('mobile-controls');
+        if (mobileControls) {
+            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            if (isTouchDevice && (screen === 'game' || screen === 'supervivencia')) {
+                mobileControls.classList.remove('hidden');
+                
+                // Mostrar/ocultar botones de consumibles (solo historia 'game' tiene consumibles)
+                const btnHeal = document.getElementById('btn-heal');
+                const btnCrossbow = document.getElementById('btn-crossbow');
+                if (screen === 'game') {
+                    if (btnHeal) btnHeal.classList.remove('hidden');
+                    if (btnCrossbow) btnCrossbow.classList.remove('hidden');
+                } else {
+                    if (btnHeal) btnHeal.classList.add('hidden');
+                    if (btnCrossbow) btnCrossbow.classList.add('hidden');
+                }
+            } else {
+                mobileControls.classList.add('hidden');
+            }
+        }
+        
         // Manejar música según la pantalla
         if (screen === 'menu' || screen === 'controls' || screen === 'settings-menu' || screen === 'shop-menu') {
             startMenuMusic();
@@ -183,12 +212,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    // Intentar forzar orientación horizontal en dispositivos móviles
+    function lockLandscape() {
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch((err) => {
+                console.log('No se pudo bloquear la orientación automáticamente (normal en iOS o sin pantalla completa):', err);
+            });
+        }
+    }
+
     // Lógica de la Pantalla de Inicio (Splash Screen)
     const splashScreen = document.getElementById('splash-screen');
     if (splashScreen) {
         splashScreen.addEventListener('click', () => {
             splashScreen.classList.add('fade-out');
             startMenuMusic();
+            lockLandscape();
             
             // Mostrar el menú principal después de la animación de fade-out
             setTimeout(() => {
@@ -198,9 +237,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { once: true });
     }
     
+    // Función para detectar si estamos en local o producción
+    function isLocal() {
+        const hostname = window.location.hostname;
+        return hostname === 'localhost' || 
+               hostname === '127.0.0.1' || 
+               hostname.startsWith('192.168.') || 
+               hostname.startsWith('10.') || 
+               hostname.startsWith('172.') || 
+               window.location.protocol === 'file:';
+    }
+
     // Manejadores de eventos
-    startBtn.addEventListener('click', () => showScreen('game'));
-    supervivenciaBtn.addEventListener('click', () => showScreen('supervivencia'));
+    startBtn.addEventListener('click', () => {
+        lockLandscape();
+        showScreen('game');
+    });
+    supervivenciaBtn.addEventListener('click', () => {
+        lockLandscape();
+        if (isLocal()) {
+            showScreen('supervivencia');
+        } else {
+            if (comingSoonNotice) {
+                comingSoonNotice.classList.add('show');
+                setTimeout(() => {
+                    comingSoonNotice.classList.remove('show');
+                }, 3000);
+            }
+        }
+    });
     controlsBtn.addEventListener('click', () => showScreen('controls'));
     backToMenuBtn.addEventListener('click', () => showScreen('menu'));
     playAgainBtn.addEventListener('click', () => showScreen('game'));
@@ -383,6 +448,28 @@ document.addEventListener('DOMContentLoaded', () => {
             updateShopUI();
         }
     });
+
+    // Manejo dinámico de advertencia de orientación para móviles (iOS & Android)
+    function checkOrientation() {
+        const warning = document.getElementById('orientation-warning');
+        if (!warning) return;
+        
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        if (isTouchDevice) {
+            // Comparación de dimensiones exactas del viewport para máxima fiabilidad en Android & iOS
+            if (window.innerWidth < window.innerHeight) {
+                warning.style.setProperty('display', 'flex', 'important');
+            } else {
+                warning.style.setProperty('display', 'none', 'important');
+            }
+        } else {
+            warning.style.setProperty('display', 'none', 'important');
+        }
+    }
+
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+    checkOrientation();
 
     // Inicializar ajustes al cargar
     loadSettings();

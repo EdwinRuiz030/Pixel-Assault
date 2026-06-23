@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>El legado del rey</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -53,18 +53,6 @@
         
         <div id="game" class="screen hidden">
             <canvas id="game-canvas"></canvas>
-            <!-- Controles móviles responsivos -->
-            <div id="mobile-controls" class="hidden">
-                <div class="movement-controls">
-                    <button id="btn-left" class="joy-btn">◀</button>
-                    <button id="btn-right" class="joy-btn">▶</button>
-                </div>
-                <div class="action-controls">
-                    <button id="btn-jump" class="joy-btn">▲</button>
-                    <button id="btn-attack" class="joy-btn">⚔</button>
-                    <button id="btn-pause" class="joy-btn">⏸</button>
-                </div>
-            </div>
         </div>
         
         <div id="supervivencia" class="screen hidden">
@@ -193,7 +181,7 @@
             </button>
         </div>
 
-        <div id="settings-menu" class="screen hidden" style="background: rgba(0, 0, 0, 0.85);">
+        <div id="settings-menu" class="screen hidden">
             <h2>AJUSTES</h2>
             <div class="settings-grid">
                 <div class="setting-item">
@@ -235,6 +223,37 @@
 
         <!-- Capa para el efecto CRT retro -->
         <div id="crt-overlay" class="crt-effects hidden"></div>
+
+        <!-- Aviso Próximamente -->
+        <div id="coming-soon-notice" class="coming-soon-notice">
+            <div class="notice-content">
+                <span>⏳ MODO SUPERVIVENCIA - PRÓXIMAMENTE</span>
+            </div>
+        </div>
+
+        <!-- Controles móviles responsivos -->
+        <div id="mobile-controls" class="hidden">
+            <div class="movement-controls">
+                <button id="btn-left" class="joy-btn">◀</button>
+                <button id="btn-right" class="joy-btn">▶</button>
+            </div>
+            <div class="action-controls">
+                <button id="btn-heal" class="joy-btn hidden">💚</button>
+                <button id="btn-crossbow" class="joy-btn hidden">🏹</button>
+                <button id="btn-jump" class="joy-btn">▲</button>
+                <button id="btn-attack" class="joy-btn">⚔</button>
+                <button id="btn-pause" class="joy-btn">⏸</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pantalla para forzar modo horizontal en móviles -->
+    <div id="orientation-warning" class="orientation-screen">
+        <div class="warning-content">
+            <div class="phone-icon-animation">🔄📱</div>
+            <h2>GIRA TU DISPOSITIVO</h2>
+            <p>Para disfrutar del juego, por favor activa la rotación y juega en modo horizontal (Landscape).</p>
+        </div>
     </div>
 
     <!-- SVG para filtros de botones -->
