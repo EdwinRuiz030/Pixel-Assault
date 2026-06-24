@@ -73,6 +73,33 @@ export class SupervivenciaGame {
             platformColor: '#654321'
         };
 
+        // Pre-cargar imágenes de fondo para la hora del día
+        this.bgImages = {
+            day: new Image(),
+            sunset: new Image(),
+            night: new Image()
+        };
+        this.bgImagesLoaded = {
+            day: false,
+            sunset: false,
+            night: false
+        };
+
+        this.bgImages.day.onload = () => { this.bgImagesLoaded.day = true; };
+        this.bgImages.sunset.onload = () => { this.bgImagesLoaded.sunset = true; };
+        this.bgImages.night.onload = () => { this.bgImagesLoaded.night = true; };
+
+        this.bgImages.day.src = 'img/dia.png';
+        this.bgImages.sunset.src = 'img/tarde.png';
+        this.bgImages.night.src = 'img/noche.png';
+
+        // Capas de paralaje para el fondo
+        this.parallaxLayers = [
+            { speed: 0.05, alpha: 0.3 }, // Capa lejana
+            { speed: 0.1, alpha: 0.4 },  // Capa media
+            { speed: 0.15, alpha: 0.5 }  // Capa cercana
+        ];
+
         // Jugador
         this.player = {
             x: 200, // Posición inicial más a la izquierda
@@ -1110,6 +1137,27 @@ export class SupervivenciaGame {
         // Limpiar canvas con color del cielo
         this.ctx.fillStyle = environment.skyColor;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Dibujar fondo de hora del día con efecto de paralaje
+        const currentBg = this.bgImages[this.timeOfDay];
+        if (currentBg && currentBg.complete) {
+            const bgHeight = this.canvas.height;
+            const bgScale = bgHeight / currentBg.height;
+            const bgWidth = currentBg.width * bgScale;
+            const bgY = 0;
+
+            for (const layer of this.parallaxLayers) {
+                const cameraOffset = this.camera.x * layer.speed;
+                const repetitions = Math.ceil((this.canvas.width + bgWidth) / bgWidth) + 1;
+
+                this.ctx.globalAlpha = layer.alpha;
+                for (let i = 0; i < repetitions; i++) {
+                    const bgX = (i * bgWidth) - (cameraOffset % bgWidth);
+                    this.ctx.drawImage(currentBg, bgX, bgY, bgWidth, bgHeight);
+                }
+            }
+            this.ctx.globalAlpha = 1.0;
+        }
 
         // Guardar estado del contexto para aplicar cámara
         this.ctx.save();

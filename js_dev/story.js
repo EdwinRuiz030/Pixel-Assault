@@ -34,7 +34,27 @@ export class StoryMode {
             this.castleVideo.play().catch(e => console.log('Error reproduciendo video:', e));
         }
 
-        // Intentar usar el GIF convirtiéndolo a video con canvas
+        // Pre-cargar imágenes de fondo para la hora del día
+        this.bgImages = {
+            day: new Image(),
+            sunset: new Image(),
+            night: new Image()
+        };
+        this.bgImagesLoaded = {
+            day: false,
+            sunset: false,
+            night: false
+        };
+
+        this.bgImages.day.onload = () => { this.bgImagesLoaded.day = true; };
+        this.bgImages.sunset.onload = () => { this.bgImagesLoaded.sunset = true; };
+        this.bgImages.night.onload = () => { this.bgImagesLoaded.night = true; };
+
+        this.bgImages.day.src = 'img/dia.png';
+        this.bgImages.sunset.src = 'img/tarde.png';
+        this.bgImages.night.src = 'img/noche.png';
+
+        // Intentar usar el GIF convirtiéndolo a video con canvas como respaldo
         this.castleGif = new Image();
         this.castleGifLoaded = false;
         // Eliminamos la animación automática para que solo se mueva con la cámara
@@ -1422,7 +1442,10 @@ export class StoryMode {
         const environment = this.environment;
 
         // Manejar fondo - restaurar paralaje sincronizado
-        if (this.castleGif && this.castleGif.complete) {
+        const currentBg = this.bgImages[this.timeOfDay];
+        const activeBg = (currentBg && currentBg.complete) ? currentBg : (this.castleGif && this.castleGif.complete ? this.castleGif : null);
+
+        if (activeBg) {
             // Ocultar video si existe
             if (this.castleVideo) {
                 this.castleVideo.style.display = 'none';
@@ -1432,23 +1455,23 @@ export class StoryMode {
             this.ctx.fillStyle = environment.skyColor;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-            // Escalar el GIF para que cubra todo el alto de la pantalla, evitando el hueco azul arriba
-            const gifHeight = this.canvas.height;
-            const bgScale = gifHeight / this.castleGif.height;
-            const gifWidth = this.castleGif.width * bgScale;
-            const gifY = 0; // Pegado al techo
+            // Escalar la imagen para que cubra todo el alto de la pantalla, evitando el hueco azul arriba
+            const bgHeight = this.canvas.height;
+            const bgScale = bgHeight / activeBg.height;
+            const bgWidth = activeBg.width * bgScale;
+            const bgY = 0; // Pegado al techo
 
             // Dibujar múltiples capas de paralaje para mayor profundidad
             for (const layer of this.parallaxLayers) {
                 const cameraOffset = this.camera.x * layer.speed;
-                const repetitions = Math.ceil((this.canvas.width + gifWidth) / gifWidth) + 1;
+                const repetitions = Math.ceil((this.canvas.width + bgWidth) / bgWidth) + 1;
 
                 this.ctx.globalAlpha = layer.alpha;
 
                 // Dibujar múltiples copias para crear efecto infinito
                 for (let i = 0; i < repetitions; i++) {
-                    const gifX = (i * gifWidth) - (cameraOffset % gifWidth);
-                    this.ctx.drawImage(this.castleGif, gifX, gifY, gifWidth, gifHeight);
+                    const bgX = (i * bgWidth) - (cameraOffset % bgWidth);
+                    this.ctx.drawImage(activeBg, bgX, bgY, bgWidth, bgHeight);
                 }
             }
 
