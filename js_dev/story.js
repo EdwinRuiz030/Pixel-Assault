@@ -348,6 +348,11 @@ export class StoryMode {
         this.armorDurability = this.armorLevel > 0 ? 3 : 0;
         this.goldCrossbowActive = false;
         this.goldCrossbowTimer = 0;
+
+        // Sincronizar el oro del jugador con localStorage
+        if (this.player) {
+            this.player.gems = parseInt(localStorage.getItem('storyGold') || '0');
+        }
     }
 
     useHealingToken() {
@@ -652,10 +657,11 @@ export class StoryMode {
             this.attackAnimationTimer = Date.now(); // Guardar tiempo de inicio de ataque
         }
 
+        const projWidth = this.goldCrossbowActive ? 15 : 10;
         const projectile = {
-            x: this.player.x + (this.player.facing > 0 ? this.player.width / 2 : -this.player.width / 2),
-            y: this.player.y,
-            width: this.goldCrossbowActive ? 15 : 10,
+            x: this.player.facing > 0 ? this.player.x + this.player.width - 5 : this.player.x - projWidth + 5,
+            y: this.player.y - 12,
+            width: projWidth,
             height: this.goldCrossbowActive ? 7 : 5,
             velocityX: this.player.facing * (this.goldCrossbowActive ? 11 : 8),
             velocityY: 0,
@@ -789,8 +795,13 @@ export class StoryMode {
         // Colisión con plataformas
         this.player.isGrounded = false;
         for (const platform of this.platforms) {
-            if (this.checkCollision(this.player, platform)) {
-                if (this.player.velocityY >= 0 && this.player.y < platform.y) {
+            // Usar colisión de aterrizaje más estrecha para evitar "caminar en el aire" en bordes
+            if (this.checkCollisionLanding(this.player, platform)) {
+                // Calcular posición anterior del jugador en el eje Y para evitar el bug del imán lateral
+                const previousBottomY = this.player.y + this.player.height - (this.player.velocityY * dt);
+                
+                // Solo aterrizar si está cayendo y estaba arriba de la plataforma en el frame anterior
+                if (this.player.velocityY >= 0 && previousBottomY <= platform.y + 3) {
                     this.player.y = platform.y - this.player.height;
                     this.player.velocityY = 0;
                     this.player.isGrounded = true;
@@ -847,8 +858,7 @@ export class StoryMode {
                             this.player.enemiesDefeated++;
                             this.score += 1000; // Puntuación de Jefe
                             this.player.gems += 50; // Oro de Jefe
-                            const currentGold = parseInt(localStorage.getItem('storyGold') || '0');
-                            localStorage.setItem('storyGold', currentGold + 50);
+                            localStorage.setItem('storyGold', this.player.gems);
                         }
                     }
                     return false;
@@ -1147,8 +1157,7 @@ export class StoryMode {
             const pickupDistance = 50;
             if (distance < pickupDistance) {
                 this.player.gems += 5;
-                const currentGold = parseInt(localStorage.getItem('storyGold') || '0');
-                localStorage.setItem('storyGold', currentGold + 5);
+                localStorage.setItem('storyGold', this.player.gems);
                 this.score += 50;
                 this.createParticles(gem.x + gem.width / 2, gem.y + gem.height / 2, '#FFD700');
                 this.gems.splice(i, 1);
@@ -1156,34 +1165,8 @@ export class StoryMode {
         }
     }
 
-    updateHealingTokens(deltaTime) {
-        this.healingTokenSpawnTimer += deltaTime;
-        if (this.healingTokenSpawnTimer >= this.healingTokenSpawnInterval && this.healingTokens.length < this.maxHealingTokens) {
-            this.spawnHealingToken();
-            this.healingTokenSpawnTimer = 0;
-        }
 
-        for (let i = this.healingTokens.length - 1; i >= 0; i--) {
-            const token = this.healingTokens[i];
-            const playerVisualCenterX = this.player.x + this.player.width / 2;
-            const playerVisualCenterY = this.player.y + this.player.height - 76;
-            const tokenCenterX = token.x + token.width / 2;
-            const tokenCenterY = token.y + token.height / 2;
 
-            const dx = playerVisualCenterX - tokenCenterX;
-            const dy = playerVisualCenterY - tokenCenterY;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            // Radio de recogida similar a las gemas
-            if (distance < 50) {
-                // Curación potente (25 HP)
-                this.player.health = Math.min(this.player.maxHealth, this.player.health + 25);
-                this.createParticles(token.x + token.width / 2, token.y + token.height / 2, '#32CD32'); // Verde para curación
-                this.healingTokens.splice(i, 1);
-                console.log('Token de curación recolectado, salud actual:', this.player.health);
-            }
-        }
-    }
 
     updateParticles(dt) {
         this.particles = this.particles.filter(particle => {
@@ -1213,7 +1196,7 @@ export class StoryMode {
             x: spawnX,
             y: groundY,
             width: 40,  // Ajustado al tamaño del personaje (40)
-            height: 60, // Ajustado al tamaño del personaje (60)
+            height: 110, // Ajustado al tamaño del personaje y pecho visual (110)
             velocityX: 0,
             velocityY: 0,
             color: '#9400D3',
@@ -1275,26 +1258,6 @@ export class StoryMode {
         console.log("¡El Rey Duende ha aparecido!");
     }
 
-    spawnHealingToken() {
-        const groundY = this.config.height - 50;
-        const y = groundY - 120 - Math.random() * 80;
-
-        let tokenX;
-        do {
-            tokenX = this.camera.x + Math.random() * (this.config.width - 40) + 20;
-        } while (Math.abs(tokenX - this.player.x) < 200);
-
-        const token = {
-            x: tokenX,
-            y: y,
-            width: 30,
-            height: 30,
-            color: '#FF0000'
-        };
-        this.healingTokens.push(token);
-        console.log('Token de curación spawneado en X:', tokenX);
-    }
-
 
 
     spawnGem() {
@@ -1341,6 +1304,15 @@ export class StoryMode {
             obj1.x + obj1.width > obj2.x &&
             obj1.y < obj2.y + obj2.height &&
             obj1.y + obj1.height >= obj2.y; // Usar >= para mantener el estado grounded estable
+    }
+
+    checkCollisionLanding(player, platform) {
+        // Reducir el ancho del jugador por 8px en cada lado para evitar el pixel-walk (quedar flotando en bordes)
+        const feetInset = 8;
+        return player.x + feetInset < platform.x + platform.width &&
+            player.x + player.width - feetInset > platform.x &&
+            player.y < platform.y + platform.height &&
+            player.y + player.height >= platform.y;
     }
 
     updateAnimations(deltaTime) {
@@ -2889,7 +2861,7 @@ export class StoryMode {
         this.player.velocityX = 0;
         this.player.velocityY = 0;
         this.player.enemiesDefeated = 0;
-        this.player.gems = 0;
+        this.player.gems = parseInt(localStorage.getItem('storyGold') || '0');
 
         this.playerStillTimer = 0;
         this.lastPlayerX = this.player.x;
