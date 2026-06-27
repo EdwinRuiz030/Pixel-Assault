@@ -803,22 +803,22 @@ input:checked + .toggle-slider:before {
     filter: grayscale(1) brightness(0.5);
 }
 
-/* Responsividad para la tienda y pantallas de menú SOLO en dispositivos Android */
+/* Responsividad para la tienda y pantallas de menú en todos los dispositivos móviles y pantallas pequeñas */
 @media (max-width: 900px) or (max-height: 600px) {
     /* Menú principal responsivo */
-    .android-device #menu h1 {
+    #menu h1 {
         font-size: 1.8rem !important;
         margin-bottom: 0.8rem !important;
         letter-spacing: 3px !important;
     }
-    .android-device #menu .button-13 {
+    #menu .button-13 {
         padding: 5px 15px !important;
         font-size: 0.9rem !important;
         margin: 5px !important;
         letter-spacing: 1px !important;
     }
 
-    .android-device #controls:not(.hidden), .android-device #shop-menu:not(.hidden), .android-device #settings-menu:not(.hidden) {
+    #controls:not(.hidden), #shop-menu:not(.hidden), #settings-menu:not(.hidden) {
         display: block !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
@@ -826,22 +826,22 @@ input:checked + .toggle-slider:before {
     }
     
     /* Achicar títulos para ganar espacio vertical */
-    .android-device #controls h2, .android-device #shop-menu h2, .android-device #settings-menu h2 {
+    #controls h2, #shop-menu h2, #settings-menu h2 {
         font-size: 2rem !important;
         margin-bottom: 10px !important;
     }
     
     /* Espaciado del menú de controles */
-    .android-device .controls-grid {
+    .controls-grid {
         gap: 10px !important;
     }
-    .android-device .control-section {
+    .control-section {
         min-width: 250px !important;
         padding: 10px !important;
     }
     
     /* Ajustes para la tienda */
-    .android-device .shop-grid {
+    .shop-grid {
         flex-direction: row !important;
         flex-wrap: wrap !important;
         justify-content: center !important;
@@ -851,26 +851,26 @@ input:checked + .toggle-slider:before {
         overflow-y: visible !important;
         padding: 10px !important;
     }
-    .android-device .shop-item-card {
+    .shop-item-card {
         flex: none !important;
         width: calc(50% - 10px) !important;
         min-width: 240px !important;
         max-width: 280px !important;
         padding: 15px !important;
     }
-    .android-device .shop-gold-container {
+    .shop-gold-container {
         margin-bottom: 15px !important;
         padding: 5px 15px !important;
     }
     
     /* Ajustes para el panel de Ajustes */
-    .android-device .settings-grid {
+    .settings-grid {
         gap: 12px !important;
         padding: 15px !important;
         margin: 10px auto !important;
         max-width: 400px !important;
     }
-    .android-device .setting-item {
+    .setting-item {
         gap: 4px !important;
     }
 }
