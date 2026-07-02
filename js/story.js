@@ -1,7 +1,7 @@
 // Clase para el Modo Historia aa
 export class StoryMode {
     constructor(settings = {}) {
-      //  console.log('=== INICIO CONSTRUCTOR STORY MODE ===');
+        //  console.log('=== INICIO CONSTRUCTOR STORY MODE ===');
         this.sfxVolume = settings.sfxVolume !== undefined ? settings.sfxVolume : 0.5;
         this.timeOfDay = settings.timeOfDay || 'day';
 
@@ -708,7 +708,7 @@ export class StoryMode {
         if (this.cameraLocked) {
             // Mantener la cámara fija en el punto de bloqueo
             this.camera.x = this.cameraLockX;
-            
+
             // Restringir el movimiento del jugador a la pantalla visible de combate
             if (this.player.x < this.camera.x) {
                 this.player.x = this.camera.x;
@@ -753,10 +753,10 @@ export class StoryMode {
                 if (this.player.x >= checkpoint.x && this.player.x <= checkpoint.x + 100) {
                     checkpoint.active = true;
                     this.lastActiveCheckpoint = { x: checkpoint.x + 50, y: this.player.y };
-                    
+
                     // Curación de gracia (50 HP) al encender la hoguera
                     this.player.health = Math.min(this.player.maxHealth, this.player.health + 50);
-                    
+
                     // Partículas de celebración doradas y verdes
                     this.createParticles(checkpoint.x + 50, this.player.y + 20, '#FFD700');
                     this.createParticles(checkpoint.x + 50, this.player.y + 20, '#32CD32');
@@ -810,7 +810,7 @@ export class StoryMode {
                             this.createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#FFD700');
                             this.createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#FF0000');
                             this.createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#FFFF00');
-                            
+
                             // Limpiar todos los demás enemigos sirvientes en el siguiente tick para evitar conflictos de indexación
                             setTimeout(() => {
                                 this.enemies = [];
@@ -818,7 +818,7 @@ export class StoryMode {
                         }
                         this.enemies.splice(i, 1);
                         this.createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#FF00FF');
-                        
+
                         if (!enemy.isBoss) {
                             this.player.enemiesDefeated++;
                             this.score += 100;
@@ -1031,7 +1031,7 @@ export class StoryMode {
                         if (this.armorLevel === 1) damageReduction = 0.10;
                         else if (this.armorLevel === 2) damageReduction = 0.25;
                         else if (this.armorLevel === 3) damageReduction = 0.40;
-                        
+
                         this.armorDurability--;
                     }
 
@@ -1043,7 +1043,7 @@ export class StoryMode {
                         // Partículas de metal (armadura)
                         this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#A9A9A9');
                         this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
-                        
+
                         if (this.armorDurability === 0) {
                             // Efecto visual de armadura rota: muchas partículas de metal
                             for (let p = 0; p < 2; p++) {
@@ -1218,10 +1218,10 @@ export class StoryMode {
 
     spawnBoss() {
         const groundY = this.config.height - 50;
-        
+
         // El jefe aparece por la derecha del bloque de cámara
         const spawnX = this.camera.x + this.config.width - 150;
-        
+
         this.boss = {
             x: spawnX,
             y: groundY,
@@ -1242,11 +1242,11 @@ export class StoryMode {
             facing: -1,
             isBoss: true
         };
-        
+
         // Ajustar para tocar el suelo
         this.boss.y = groundY - this.boss.height;
         this.boss.velocityY = 0;
-        
+
         this.enemies.push(this.boss);
         console.log("¡El Rey Duende ha aparecido!");
     }
@@ -1448,17 +1448,17 @@ export class StoryMode {
             const groundY = this.canvas.height - 50;
             const bonfireX = checkpoint.x + 50;
             const bonfireY = groundY - 40;
-            
+
             // Dibujar troncos (madera oscura)
             this.ctx.fillStyle = '#4A2711';
             this.ctx.fillRect(bonfireX - 20, bonfireY + 25, 40, 10);
             this.ctx.fillStyle = '#5A3721';
             this.ctx.fillRect(bonfireX - 15, bonfireY + 18, 30, 8);
-            
+
             if (checkpoint.active) {
                 // Dibujar fuego activo animado
                 const time = Date.now() / 150;
-                
+
                 // Capa exterior roja
                 this.ctx.fillStyle = '#FF4500';
                 this.ctx.beginPath();
@@ -1466,7 +1466,7 @@ export class StoryMode {
                 this.ctx.quadraticCurveTo(bonfireX, bonfireY - 12 + Math.sin(time) * 10, bonfireX + 15, bonfireY + 20);
                 this.ctx.closePath();
                 this.ctx.fill();
-                
+
                 // Capa media naranja
                 this.ctx.fillStyle = '#FF8C00';
                 this.ctx.beginPath();
@@ -1474,7 +1474,7 @@ export class StoryMode {
                 this.ctx.quadraticCurveTo(bonfireX, bonfireY - 2 + Math.cos(time) * 8, bonfireX + 10, bonfireY + 20);
                 this.ctx.closePath();
                 this.ctx.fill();
-                
+
                 // Capa interior amarilla
                 this.ctx.fillStyle = '#FFD700';
                 this.ctx.beginPath();
@@ -1482,7 +1482,7 @@ export class StoryMode {
                 this.ctx.quadraticCurveTo(bonfireX, bonfireY + 5 + Math.sin(time * 1.5) * 5, bonfireX + 5, bonfireY + 20);
                 this.ctx.closePath();
                 this.ctx.fill();
-                
+
                 // Resplandor del fuego
                 this.ctx.save();
                 this.ctx.globalAlpha = 0.12;
@@ -1495,7 +1495,7 @@ export class StoryMode {
                 // Hoguera inactiva - troncos secos y algo de ceniza gris
                 this.ctx.fillStyle = '#2F4F4F';
                 this.ctx.fillRect(bonfireX - 5, bonfireY + 12, 10, 6);
-                
+
                 // Pequeño humo flotante
                 const time = Date.now() / 300;
                 this.ctx.fillStyle = 'rgba(150, 150, 150, 0.4)';
@@ -1503,7 +1503,7 @@ export class StoryMode {
                 this.ctx.arc(bonfireX + Math.sin(time) * 2, bonfireY + 5 - (time % 20), 2, 0, Math.PI * 2);
                 this.ctx.fill();
             }
-            
+
             // Dibujar el texto arriba de la hoguera
             this.ctx.fillStyle = checkpoint.active ? '#FFD700' : '#888888';
             this.ctx.font = 'bold 10px Georgia, serif';
@@ -1514,13 +1514,13 @@ export class StoryMode {
         // --- DIBUJAR EL GRAN CASTILLO AL FINAL ---
         const castleX = 9600;
         const groundY = this.canvas.height - 50;
-        
+
         // Estructuras de la fortaleza medieval
         const drawStoneStructure = (x, y, w, h) => {
             // Base del muro en piedra gris
             this.ctx.fillStyle = '#5A5A5A';
             this.ctx.fillRect(x, y, w, h);
-            
+
             // Sombreado inferior de bloques
             this.ctx.fillStyle = '#3F3F3F';
             this.ctx.fillRect(x, y + h - 5, w, 5);
@@ -1694,7 +1694,7 @@ export class StoryMode {
         this.ctx.fillStyle = this.bossDefeated ? '#FFD700' : '#C0C0C0';
         this.ctx.font = 'bold 13px Georgia, serif';
         this.ctx.textAlign = 'center';
-        
+
         // Sombra de texto
         this.ctx.fillStyle = '#000000';
         this.ctx.fillText(this.bossDefeated ? "🏰 ¡ENTRA AL CASTILLO!" : "🔒 CASTILLO BLOQUEADO", castleX + 180 + 1, gateY - 20 + 1);
@@ -1793,7 +1793,7 @@ export class StoryMode {
 
                 // Centrar horizontalmente sobre el hitbox
                 const drawX = enemyCenterX - duendeWidth / 2;
-                
+
                 // Desplazar el sprite hacia abajo para que los pies toquen el suelo y no flote
                 // debido al espacio transparente en la parte inferior del frame del sprite sheet.
                 const offsetY = duendeHeight * 0.08; // Ajusta este valor para subir o bajar el sprite según sea necesario
@@ -2278,21 +2278,21 @@ export class StoryMode {
                 const progressY = 20;
                 const progressW = 220;
                 const progressH = 8;
-                
+
                 // Borde exterior (hierro forjado)
                 this.ctx.fillStyle = '#1a1105';
                 this.ctx.fillRect(progressX, progressY, progressW, progressH);
-                
+
                 // Fondo de la barra (oro viejo apagado)
                 this.ctx.fillStyle = '#3a270f';
                 this.ctx.fillRect(progressX + 1, progressY + 1, progressW - 2, progressH - 2);
-                
+
                 // Calcular porcentaje de progreso
                 const startX = 200;
                 const endX = 9500;
                 const progressPercentage = Math.max(0, Math.min(1, (this.player.x - startX) / (endX - startX)));
                 const fillWidth = (progressW - 2) * progressPercentage;
-                
+
                 if (fillWidth > 0) {
                     const progressGrad = this.ctx.createLinearGradient(progressX, progressY, progressX + progressW, progressY);
                     progressGrad.addColorStop(0, '#B8860B'); // Bronce
@@ -2300,7 +2300,7 @@ export class StoryMode {
                     this.ctx.fillStyle = progressGrad;
                     this.ctx.fillRect(progressX + 1, progressY + 1, fillWidth, progressH - 2);
                 }
-                
+
                 // Pequeño indicador de Caballero
                 const knightPos = progressX + 1 + (progressW - 2) * progressPercentage;
                 this.ctx.fillStyle = '#FFFFFF';
@@ -2311,13 +2311,13 @@ export class StoryMode {
                 this.ctx.beginPath();
                 this.ctx.arc(knightPos, progressY + progressH / 2, 4, 0, Math.PI * 2);
                 this.ctx.fill();
-                
+
                 // Dibujar castillo emoji al final
                 this.ctx.fillStyle = this.bossDefeated ? '#FFD700' : '#888888';
                 this.ctx.font = '12px serif';
                 this.ctx.textAlign = 'left';
                 this.ctx.fillText("🏰", progressX + progressW + 5, progressY + 8);
-                
+
                 // Texto superior
                 this.ctx.fillStyle = '#FFD700';
                 this.ctx.font = 'bold 9px Georgia, serif';
@@ -2332,29 +2332,29 @@ export class StoryMode {
             const bossH = 20;
             const bossX = this.canvas.width / 2 - bossW / 2;
             const bossY = this.canvas.height - 85;
-            
+
             // 1. Marco de hierro forjado
             this.ctx.fillStyle = '#1a1105';
             this.ctx.fillRect(bossX - 4, bossY - 4, bossW + 8, bossH + 8);
-            
+
             // 2. Borde decorativo dorado
             this.ctx.fillStyle = '#DAA520';
             this.ctx.fillRect(bossX - 2, bossY - 2, bossW + 4, bossH + 4);
-            
+
             // 3. Fondo vacío (sangre seca)
             this.ctx.fillStyle = '#2a0505';
             this.ctx.fillRect(bossX, bossY, bossW, bossH);
-            
+
             // 4. Relleno de vida (sangre fresca)
             const bossHpPercentage = Math.max(0, this.boss.health / this.boss.maxHealth);
             const bossFillW = bossW * bossHpPercentage;
-            
+
             if (bossFillW > 0) {
                 const bossGrad = this.ctx.createLinearGradient(0, bossY, 0, bossY + bossH);
                 bossGrad.addColorStop(0, '#ff1a1a');
                 bossGrad.addColorStop(0.5, '#990000');
                 bossGrad.addColorStop(1, '#4a0000');
-                
+
                 // Si está en modo furia, destellar la barra
                 if (this.boss.health < this.boss.maxHealth / 2) {
                     const time = Date.now() / 100;
@@ -2362,23 +2362,23 @@ export class StoryMode {
                         bossGrad.addColorStop(0.3, '#ff6666');
                     }
                 }
-                
+
                 this.ctx.fillStyle = bossGrad;
                 this.ctx.fillRect(bossX, bossY, bossFillW, bossH);
-                
+
                 // Brillo superior
                 this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
                 this.ctx.fillRect(bossX, bossY, bossFillW, bossH / 3);
             }
-            
+
             // 5. Texto de Jefe
             this.ctx.fillStyle = '#FFE5C2';
             this.ctx.font = 'bold 12px Georgia, serif';
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
-            
+
             const bossTitle = this.boss.health < this.boss.maxHealth / 2 ? "👿 EL REY DUENDE (FURIA SE DESATÓ) 👿" : "👿 EL REY DUENDE - SEÑOR DE LAS SOMBRAS 👿";
-            
+
             // Sombra
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
             this.ctx.fillText(bossTitle, this.canvas.width / 2 + 1, bossY + bossH / 2 + 1);
@@ -2392,20 +2392,20 @@ export class StoryMode {
             const introH = 360;
             const introX = this.canvas.width / 2 - introW / 2;
             const introY = this.canvas.height / 2 - introH / 2;
-            
+
             // Oscurecer fondo detrás del pergamino
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-            
+
             // Dibujar pergamino medieval
             this.ctx.fillStyle = '#1A1005'; // Marco oscuro
             this.roundRect(introX - 6, introY - 6, introW + 12, introH + 12, 10);
             this.ctx.fill();
-            
+
             this.ctx.fillStyle = '#B8860B'; // Borde dorado
             this.roundRect(introX - 3, introY - 3, introW + 6, introH + 6, 8);
             this.ctx.fill();
-            
+
             // Fondo color pergamino
             const scrollGrad = this.ctx.createLinearGradient(introX, introY, introX, introY + introH);
             scrollGrad.addColorStop(0, '#FFE8D1');
@@ -2414,18 +2414,18 @@ export class StoryMode {
             this.ctx.fillStyle = scrollGrad;
             this.roundRect(introX, introY, introW, introH, 6);
             this.ctx.fill();
-            
+
             // Detalles de pergamino enrollado en los bordes
             this.ctx.fillStyle = '#8B5A2B';
             this.ctx.fillRect(introX - 10, introY - 5, 8, introH + 10);
             this.ctx.fillRect(introX + introW + 2, introY - 5, 8, introH + 10);
-            
+
             // Texto del lore
             this.ctx.font = 'bold 20px Georgia, serif';
             this.ctx.textAlign = 'center';
             this.ctx.fillStyle = '#3A200A'; // Marrón oscuro medieval
             this.ctx.fillText("⚔️ CRÓNICAS DE PIXELIA ⚔️", this.canvas.width / 2, introY + 40);
-            
+
             // Adorno inferior del título
             this.ctx.strokeStyle = '#8B5A2B';
             this.ctx.lineWidth = 2;
@@ -2433,7 +2433,7 @@ export class StoryMode {
             this.ctx.moveTo(introX + 50, introY + 55);
             this.ctx.lineTo(introX + introW - 50, introY + 55);
             this.ctx.stroke();
-            
+
             // Mensaje del Lore (párrafo)
             this.ctx.font = 'italic 15px Georgia, serif';
             this.ctx.fillStyle = '#4A2B0F';
@@ -2449,13 +2449,13 @@ export class StoryMode {
                 "¡CUIDADO! Las hogueras medievales en el camino guardarán",
                 "tu alma. ¡Que tu puntería sea certera y la fe guíe cada virote!"
             ];
-            
+
             let textY = introY + 85;
             for (const line of lines) {
                 this.ctx.fillText(line, this.canvas.width / 2, textY);
                 textY += 20;
             }
-            
+
             // Mensaje para continuar
             const pulse = Date.now() / 250;
             this.ctx.font = 'bold 11px Georgia, serif';
@@ -2786,7 +2786,7 @@ export class StoryMode {
     restartGame() {
         console.log('Reiniciando el juego...');
         this.loadUpgrades();
-        
+
         // Detener audio de muerte
         if (this.deathAudio) {
             this.deathAudio.pause();
@@ -2798,7 +2798,7 @@ export class StoryMode {
             this.gameOver = false;
             this.victory = false;
             this.paused = false;
-            
+
             // Reaparecer con salud completa y en la posición de la última hoguera
             this.player.health = this.player.maxHealth;
             this.player.displayHealth = this.player.maxHealth;
@@ -2806,18 +2806,18 @@ export class StoryMode {
             this.player.y = this.lastActiveCheckpoint.y;
             this.player.velocityX = 0;
             this.player.velocityY = 0;
-            
+
             // Asegurarse de desbloquear la cámara y limpiar jefes si murió allí
             this.cameraLocked = false;
             this.bossActive = false;
             this.boss = null;
-            
+
             // Limpiar enemigos y proyectiles locales
             this.enemies = [];
             this.projectiles = [];
             this.particles = [];
             this.enemySpawnTimer = 0;
-            
+
             console.log(`Reaparecido en el último checkpoint: x = ${this.player.x}`);
             return;
         }
