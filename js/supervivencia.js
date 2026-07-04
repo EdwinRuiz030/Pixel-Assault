@@ -257,6 +257,17 @@ export class SupervivenciaGame {
         this.deathAudio = new Audio('songs/Death Is Just Another Path.mp3');
         this.deathAudio.volume = this.sfxVolume;
 
+        // Pool de efectos de sonido (SFX)
+        this.sfx = {
+            flecha: new Audio('audios/flecha.ogg'),
+            golpe: new Audio('audios/golpe.ogg'),
+            herido: new Audio('audios/heracles herido.ogg'),
+            impactoJefe: new Audio('audios/impacto jefe.ogg'),
+            jefeHerido: new Audio('audios/jefe herido mejorado.ogg'),
+            oro: new Audio('audios/oro.ogg')
+        };
+
+
         // Inicialización
         if (!this.canvas || !this.ctx) {
             console.error('No se puede inicializar el juego - canvas o contexto no disponible');
@@ -539,6 +550,7 @@ export class SupervivenciaGame {
             owner: 'player'
         };
         this.projectiles.push(projectile);
+        this.playSFX('flecha');
     }
 
     updatePhysics(deltaTime) {
@@ -601,6 +613,9 @@ export class SupervivenciaGame {
                 if (this.checkCollision(projectile, enemy)) {
                     // Restar vida al enemigo
                     enemy.health--;
+
+                    // Reproducir efecto de sonido de golpe
+                    this.playSFX('golpe');
 
                     // Crear partículas de impacto
                     this.createParticles(projectile.x, projectile.y, '#FF00FF');
@@ -800,6 +815,7 @@ export class SupervivenciaGame {
 
                     this.player.health -= scaledDamage;
                     this.player.lastDamageTime = now;
+                    this.playSFX('herido');
                     this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
                 }
             }
@@ -873,6 +889,7 @@ export class SupervivenciaGame {
                 this.score += 50;
                 this.createParticles(gem.x + gem.width / 2, gem.y + gem.height / 2, '#FFD700');
                 this.gems.splice(i, 1);
+                this.playSFX('oro');
             }
         }
     }
@@ -2139,6 +2156,14 @@ export class SupervivenciaGame {
             this.deathAudio.volume = vol;
         }
     }
+
+    playSFX(name) {
+        if (this.sfxVolume === 0 || !this.sfx || !this.sfx[name]) return;
+        const sound = this.sfx[name].cloneNode(true);
+        sound.volume = this.sfxVolume;
+        sound.play().catch(e => console.log(`Error al reproducir SFX ${name}:`, e));
+    }
+
 
     setTimeOfDay(time) {
         this.timeOfDay = time;

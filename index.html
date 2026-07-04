@@ -116,7 +116,7 @@
             <div class="shop-grid">
                 <!-- Tarjeta: Token de Curación -->
                 <div class="shop-item-card">
-                    <h3>💚 Token de Curación</h3>
+                    <h3><img src="img/curacion.png" alt="Curación" class="shop-item-icon"> Token de Curación</h3>
                     <p>Cura 50 HP al instante. Se activa en juego con la tecla 'H'.</p>
                     <div class="shop-item-controls">
                         <span>Precio: 25 🪙</span>
@@ -146,7 +146,7 @@
                 
                 <!-- Tarjeta: Armadura de Resistencia -->
                 <div class="shop-item-card">
-                    <h3>🛡️ Armadura de Resistencia</h3>
+                    <h3><img src="img/resistencia.png" alt="Resistencia" class="shop-item-icon"> Armadura de Resistencia</h3>
                     <p>Reduce daño (Lvl 1: -10%, Lvl 2: -25%, Lvl 3: -40%). Dura 3 golpes por vida.</p>
                     <div class="shop-item-controls">
                         <span id="shop-armor-price-label">Precio: 50 🪙</span>
@@ -226,11 +226,52 @@
                     </label>
                 </div>
             </div>
+            <button id="view-terms-btn" class="button-13" role="button">
+                <span class="text">TÉRMINOS Y PRIVACIDAD</span>
+                <span class="button-13-background"></span>
+                <span class="button-13-border"></span>
+            </button>
             <button id="settings-back-btn" class="button-13" role="button">
                 <span class="text">VOLVER</span>
                 <span class="button-13-background"></span>
                 <span class="button-13-border"></span>
             </button>
+        </div>
+
+        <!-- Pantalla de Consentimiento de Términos y Privacidad -->
+        <div id="consent-screen" class="screen hidden">
+            <div class="consent-container medieval-card">
+                <h2>DECRETO DEL REINO</h2>
+                <h3>Términos, Condiciones y Privacidad</h3>
+                
+                <div class="consent-scroll-box">
+                    <p class="medieval-subtitle">¡Saludos, aventurero!</p>
+                    <p>Antes de comenzar tu viaje en <strong>El legado del rey</strong>, es nuestro deber informarte bajo qué normas se rige nuestro reino:</p>
+                    
+                    <h4>1. Privacidad y Datos</h4>
+                    <p><strong>Sin datos personales:</strong> En este reino no se te solicitará información personal como correos electrónicos, contraseñas o nombres reales. Valoramos y respetamos tu anonimato.</p>
+                    <p><strong>Guardado de Récords (Opcional):</strong> Si alcanzas una puntuación digna de cantares en el modo supervivencia, el juego te dará la opción de registrar un <strong>nombre o apodo (nickname)</strong> de tu agrado. Este dato se usará únicamente para registrar tu hazaña en la tabla de récords y no se comparte con ningún ente externo.</p>
+                    <p><strong>Almacenamiento Local (Local Storage):</strong> Tus monedas acumuladas, mejoras adquiridas en la tienda y tus configuraciones personales se guardan de forma directa en el almacenamiento local de tu navegador web. Ninguno de estos datos viaja a servidores externos.</p>
+                    
+                    <h4>2. Reglas del Juego (Términos de Uso)</h4>
+                    <p><strong>Propiedad del Reino:</strong> El código del juego, sus artes visuales y música ambiental son propiedad intelectual de sus creadores o se utilizan con licencias apropiadas para su libre uso.</p>
+                    <p><strong>Uso Personal y Entretenimiento:</strong> El juego se proporciona para tu diversión personal. Queda prohibido alterar o manipular la lógica interna del código con fines maliciosos.</p>
+                    <p><strong>Exención de Responsabilidad:</strong> El software se entrega "tal cual". No nos hacemos responsables de pérdidas de progreso o monedas en caso de que borres la caché de tu navegador o cambies de dispositivo.</p>
+                </div>
+                
+                <div class="consent-actions">
+                    <button id="accept-consent-btn" class="button-13" role="button">
+                        <span class="text">ACEPTAR Y CONTINUAR</span>
+                        <span class="button-13-background"></span>
+                        <span class="button-13-border"></span>
+                    </button>
+                    <button id="close-consent-btn" class="button-13 hidden" role="button">
+                        <span class="text">VOLVER</span>
+                        <span class="button-13-background"></span>
+                        <span class="button-13-border"></span>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Capa para el efecto CRT retro -->

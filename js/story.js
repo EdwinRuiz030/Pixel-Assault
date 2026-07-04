@@ -304,6 +304,17 @@ export class StoryMode {
         this.deathAudio = new Audio('songs/Death Is Just Another Path.mp3');
         this.deathAudio.volume = this.sfxVolume;
 
+        // Pool de efectos de sonido (SFX)
+        this.sfx = {
+            flecha: new Audio('audios/flecha.ogg'),
+            golpe: new Audio('audios/golpe.ogg'),
+            herido: new Audio('audios/heracles herido.ogg'),
+            impactoJefe: new Audio('audios/impacto jefe.ogg'),
+            jefeHerido: new Audio('audios/jefe herido mejorado.ogg'),
+            oro: new Audio('audios/oro.ogg')
+        };
+
+
         // Inicialización
         if (!this.canvas || !this.ctx) {
             console.error('No se puede inicializar el juego - canvas o contexto no disponible');
@@ -643,6 +654,7 @@ export class StoryMode {
             owner: 'player'
         };
         this.projectiles.push(projectile);
+        this.playSFX('flecha');
     }
 
     updatePhysics(deltaTime) {
@@ -795,6 +807,13 @@ export class StoryMode {
                     // Restar vida al enemigo
                     const dmg = projectile.isGolden ? 2 : 1;
                     enemy.health -= dmg;
+
+                    // Reproducir efecto de sonido de golpe
+                    if (enemy.isBoss) {
+                        this.playSFX('jefeHerido');
+                    } else {
+                        this.playSFX('golpe');
+                    }
 
                     // Crear partículas de impacto
                     this.createParticles(projectile.x, projectile.y, projectile.isGolden ? '#FFD700' : '#FF00FF');
@@ -1038,6 +1057,12 @@ export class StoryMode {
                     const scaledDamage = 10 * (1 - damageReduction);
                     this.player.health -= scaledDamage;
                     this.player.lastDamageTime = now;
+                    
+                    if (enemy.isBoss) {
+                        this.playSFX('impactoJefe');
+                    } else {
+                        this.playSFX('herido');
+                    }
 
                     if (useArmor) {
                         // Partículas de metal (armadura)
@@ -1128,6 +1153,7 @@ export class StoryMode {
                 this.score += 50;
                 this.createParticles(gem.x + gem.width / 2, gem.y + gem.height / 2, '#FFD700');
                 this.gems.splice(i, 1);
+                this.playSFX('oro');
             }
         }
     }
@@ -3034,6 +3060,14 @@ export class StoryMode {
             this.deathAudio.volume = vol;
         }
     }
+
+    playSFX(name) {
+        if (this.sfxVolume === 0 || !this.sfx || !this.sfx[name]) return;
+        const sound = this.sfx[name].cloneNode(true);
+        sound.volume = this.sfxVolume;
+        sound.play().catch(e => console.log(`Error al reproducir SFX ${name}:`, e));
+    }
+
 
     setTimeOfDay(time) {
         this.timeOfDay = time;

@@ -50,6 +50,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const crtFilterToggle = document.getElementById('crt-filter-toggle');
     const crtOverlay = document.getElementById('crt-overlay');
     
+    // Elementos de Consentimiento
+    const consentScreen = document.getElementById('consent-screen');
+    const acceptConsentBtn = document.getElementById('accept-consent-btn');
+    const closeConsentBtn = document.getElementById('close-consent-btn');
+    const viewTermsBtn = document.getElementById('view-terms-btn');
+    
     // Inicialización del juego
     let game;
     let supervivenciaGame;
@@ -109,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(screen).classList.remove('hidden');
         
         // Manejar música según la pantalla
-        if (screen === 'menu' || screen === 'controls' || screen === 'settings-menu' || screen === 'shop-menu') {
+        if (screen === 'menu' || screen === 'controls' || screen === 'settings-menu' || screen === 'shop-menu' || screen === 'consent-screen') {
             startMenuMusic();
         } else {
             menuMusic.pause();
@@ -166,13 +172,37 @@ document.addEventListener('DOMContentLoaded', () => {
             splashScreen.classList.add('fade-out');
             startMenuMusic();
             
-            // Mostrar el menú principal después de la animación de fade-out
+            // Mostrar la pantalla de consentimiento o menú principal después del fade-out
             setTimeout(() => {
                 splashScreen.remove(); // Eliminar del DOM para limpiar
-                showScreen('menu');
+                
+                if (localStorage.getItem('termsAccepted') === 'true') {
+                    showScreen('menu');
+                } else {
+                    // Mostrar pantalla de consentimiento
+                    showScreen('consent-screen');
+                    acceptConsentBtn.classList.remove('hidden');
+                    closeConsentBtn.classList.add('hidden');
+                }
             }, 800);
         }, { once: true });
     }
+    
+    // Manejadores de la pantalla de consentimiento
+    acceptConsentBtn.addEventListener('click', () => {
+        localStorage.setItem('termsAccepted', 'true');
+        showScreen('menu');
+    });
+
+    closeConsentBtn.addEventListener('click', () => {
+        showScreen('settings-menu');
+    });
+
+    viewTermsBtn.addEventListener('click', () => {
+        showScreen('consent-screen');
+        acceptConsentBtn.classList.add('hidden');
+        closeConsentBtn.classList.remove('hidden');
+    });
     
     // Manejadores de eventos
     startBtn.addEventListener('click', () => showScreen('game'));

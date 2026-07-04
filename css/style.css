@@ -810,4 +810,118 @@ input:checked + .toggle-slider:before {
         max-width: 400px;
     }
 }
-
+
+/* Pantalla de Consentimiento */
+#consent-screen {
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 1000;
+}
+
+.medieval-card {
+    background: rgba(30, 20, 10, 0.85); /* Color café oscuro */
+    border: 3px double #ffd700;
+    border-radius: 12px;
+    padding: 30px;
+    width: 95%;
+    max-width: 650px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 25px rgba(255, 215, 0, 0.3);
+    overflow: hidden;
+}
+
+.medieval-card h2 {
+    color: #ffd700;
+    font-size: 2.2rem;
+    font-family: 'Georgia', serif;
+    text-shadow: 0 0 10px #ffd700;
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+}
+
+.medieval-card h3 {
+    color: #0ff;
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.consent-scroll-box {
+    flex: 1;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid #8b4513;
+    padding: 20px;
+    text-align: left;
+    margin-bottom: 20px;
+    border-radius: 6px;
+}
+
+/* Estilo para barra de desplazamiento medieval */
+.consent-scroll-box::-webkit-scrollbar {
+    width: 8px;
+}
+.consent-scroll-box::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+}
+.consent-scroll-box::-webkit-scrollbar-thumb {
+    background: #8b4513;
+    border-radius: 4px;
+    border: 1px solid #ffd700;
+}
+
+.consent-scroll-box p {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 15px;
+    color: #ddd;
+}
+
+.consent-scroll-box strong {
+    color: #ffd700;
+}
+
+.consent-scroll-box em {
+    color: #0ff;
+}
+
+.consent-scroll-box h4 {
+    color: #ffd700;
+    font-size: 1.15rem;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+    padding-bottom: 5px;
+}
+
+.medieval-subtitle {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #ffd700;
+    text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+}
+
+.consent-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+/* Estilo para los iconos de la tienda (imágenes) */
+.shop-item-icon {
+    width: 45px;
+    height: 45px;
+    vertical-align: middle;
+    margin-right: 12px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.8)); /* Brillo dorado medieval */
+    transition: transform 0.3s ease;
+}
+
+.shop-item-card:hover .shop-item-icon {
+    transform: scale(1.15) rotate(5deg); /* Efecto hover dinámico */
+}
+
