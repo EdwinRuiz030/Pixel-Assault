@@ -269,6 +269,7 @@ export class StoryMode {
         this.platformsImage.onload = () => { this.platformsImageLoaded = true; };
         this.platformsImage.src = 'img/plataforma 1.png';
 
+        // Imagen de la Espada de Fe (proyectil antiguo)
         this.swordImage = new Image();
         this.swordImageLoaded = false;
         this.swordImage.onload = () => {
@@ -279,6 +280,12 @@ export class StoryMode {
             console.error('Error cargando Espada de Fe');
         };
         this.swordImage.src = 'img/Espada de Fe.png';
+
+        // Imagen del proyectil (Flecha de Fe)
+        this.arrowImage = new Image();
+        this.arrowImageLoaded = false;
+        this.arrowImage.onload = () => { this.arrowImageLoaded = true; };
+        this.arrowImage.src = 'img/flecha de fe.png';
 
         // Imagen del token
         this.tokenImage = new Image();
@@ -291,6 +298,22 @@ export class StoryMode {
         this.treeImageLoaded = false;
         this.treeImage.onload = () => { this.treeImageLoaded = true; };
         this.treeImage.src = 'img/arbol.png';
+
+        // Imágenes de fondo según tiempo del día
+        this.diaImage = new Image();
+        this.diaImageLoaded = false;
+        this.diaImage.onload = () => { this.diaImageLoaded = true; };
+        this.diaImage.src = 'img/dia.png';
+
+        this.tardeImage = new Image();
+        this.tardeImageLoaded = false;
+        this.tardeImage.onload = () => { this.tardeImageLoaded = true; };
+        this.tardeImage.src = 'img/tarde.png';
+
+        this.nocheImage = new Image();
+        this.nocheImageLoaded = false;
+        this.nocheImage.onload = () => { this.nocheImageLoaded = true; };
+        this.nocheImage.src = 'img/noche.png';
 
 
 
@@ -311,7 +334,8 @@ export class StoryMode {
             herido: new Audio('audios/heracles herido.ogg'),
             impactoJefe: new Audio('audios/impacto jefe.ogg'),
             jefeHerido: new Audio('audios/jefe herido mejorado.ogg'),
-            oro: new Audio('audios/oro.ogg')
+            oro: new Audio('audios/oro.ogg'),
+            fogata: new Audio('audios/tono de fogata mejorado.ogg')
         };
 
 
@@ -642,14 +666,17 @@ export class StoryMode {
             this.attackAnimationTimer = Date.now(); // Guardar tiempo de inicio de ataque
         }
 
+        const projWidth = this.goldCrossbowActive ? 45 : 35;
+        const projHeight = this.goldCrossbowActive ? 15 : 10;
+
         const projectile = {
-            x: this.player.x + (this.player.facing > 0 ? this.player.width / 2 : -this.player.width / 2),
-            y: this.player.y,
-            width: this.goldCrossbowActive ? 15 : 10,
-            height: this.goldCrossbowActive ? 7 : 5,
+            x: this.player.x + (this.player.facing > 0 ? this.player.width : -projWidth),
+            y: this.player.y - 18, // Subir la Y para que salga alineada con la ballesta (en el hombro/pecho)
+            width: projWidth,
+            height: projHeight,
             velocityX: this.player.facing * (this.goldCrossbowActive ? 11 : 8),
             velocityY: 0,
-            color: this.goldCrossbowActive ? '#FFD700' : this.player.color,
+            color: this.goldCrossbowActive ? '#FFD700' : '#8B4513',
             isGolden: this.goldCrossbowActive,
             owner: 'player'
         };
@@ -769,6 +796,9 @@ export class StoryMode {
                     // Curación de gracia (50 HP) al encender la hoguera
                     this.player.health = Math.min(this.player.maxHealth, this.player.health + 50);
 
+                    // Reproducir sonido de fogata mejorado
+                    this.playSFX('fogata');
+
                     // Partículas de celebración doradas y verdes
                     this.createParticles(checkpoint.x + 50, this.player.y + 20, '#FFD700');
                     this.createParticles(checkpoint.x + 50, this.player.y + 20, '#32CD32');
@@ -800,17 +830,28 @@ export class StoryMode {
                 return false;
             }
 
-            // Colisión con enemigos
+            // Colisión con enemigos (usamos una hitbox extendida verticalmente para coincidir con la flecha alta)
             for (let i = this.enemies.length - 1; i >= 0; i--) {
                 const enemy = this.enemies[i];
-                if (this.checkCollision(projectile, enemy)) {
+                const verticalExtension = enemy.isBoss ? 0 : 30;
+                const enemyHitBox = {
+                    x: enemy.x,
+                    y: enemy.y - verticalExtension,
+                    width: enemy.width,
+                    height: enemy.height + verticalExtension
+                };
+                if (this.checkCollision(projectile, enemyHitBox)) {
                     // Restar vida al enemigo
                     const dmg = projectile.isGolden ? 2 : 1;
                     enemy.health -= dmg;
 
                     // Reproducir efecto de sonido de golpe
                     if (enemy.isBoss) {
-                        this.playSFX('jefeHerido');
+                        const now = Date.now();
+                        if (!this.lastBossHurtSoundTime || now - this.lastBossHurtSoundTime > 700) {
+                            this.playSFX('jefeHerido');
+                            this.lastBossHurtSoundTime = now;
+                        }
                     } else {
                         this.playSFX('golpe');
                     }
@@ -941,7 +982,15 @@ export class StoryMode {
             const dy = this.player.y - enemy.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            if (distance > 0) {
+            // Calcular distancia de borde a borde (edge-to-edge) para la lógica de ataque
+            const horizontalGap = Math.max(0, Math.abs(this.player.x + this.player.width / 2 - (enemy.x + enemy.width / 2)) - (this.player.width + enemy.width) / 2);
+            const verticalGap = Math.max(0, Math.abs(this.player.y + this.player.height / 2 - (enemy.y + enemy.height / 2)) - (this.player.height + enemy.height) / 2);
+            const edgeDistance = Math.sqrt(horizontalGap * horizontalGap + verticalGap * verticalGap);
+
+            const attackDistanceLimit = enemy.isBoss ? 60 : 35;
+            const inRange = edgeDistance < attackDistanceLimit;
+
+            if (distance > 0 && !inRange) {
                 // Velocidad escalada según tipo y salud
                 let baseEnemySpeed = 1.5;
                 if (enemy.isBoss) {
@@ -1006,26 +1055,32 @@ export class StoryMode {
 
             // Determinar estado de animación
             const isMoving = Math.abs(dx) > 1;
-            const isAttacking = distance < 60; // Distancia para considerar ataque visual
+            const isWithinAttackDistance = inRange;
+            const nowTime = Date.now();
+            const canAttack = isWithinAttackDistance && (nowTime >= (enemy.nextAttackTime || 0));
 
-            if (isAttacking) {
-                if (enemy.animationState !== 'ataque') {
+            // Solo cambiamos el estado si el enemigo NO está atacando actualmente
+            if (enemy.animationState !== 'ataque') {
+                if (canAttack) {
                     enemy.animationState = 'ataque';
                     enemy.animationFrame = 0;
                     enemy.animationTimer = 0;
-                }
-            } else if (isMoving) {
-                if (enemy.animationState !== 'caminar') {
-                    enemy.animationState = 'caminar';
-                    enemy.animationFrame = 0;
-                    enemy.animationTimer = 0;
-                }
-                enemy.facing = dx > 0 ? 1 : -1;
-            } else {
-                if (enemy.animationState !== 'reposo') {
-                    enemy.animationState = 'reposo';
-                    enemy.animationFrame = 0;
-                    enemy.animationTimer = 0;
+                    enemy.hasDealtDamage = false;
+                } else if (isMoving) {
+                    if (enemy.animationState !== 'caminar') {
+                        enemy.animationState = 'caminar';
+                        enemy.animationFrame = 0;
+                        enemy.animationTimer = 0;
+                        enemy.hasDealtDamage = false;
+                    }
+                    enemy.facing = dx > 0 ? 1 : -1;
+                } else {
+                    if (enemy.animationState !== 'reposo') {
+                        enemy.animationState = 'reposo';
+                        enemy.animationFrame = 0;
+                        enemy.animationTimer = 0;
+                        enemy.hasDealtDamage = false;
+                    }
                 }
             }
 
@@ -1034,50 +1089,73 @@ export class StoryMode {
             const numFrames = (animConfig.end - animConfig.start) + 1;
 
             if (enemy.animationTimer >= enemy.animationSpeed) {
-                enemy.animationFrame = (enemy.animationFrame + 1) % numFrames;
-                enemy.animationTimer = 0;
+                const nextFrame = (enemy.animationFrame + 1) % numFrames;
+                if (enemy.animationState === 'ataque' && nextFrame === 0) {
+                    // El ataque ha terminado su ciclo completo, aplicar cooldown
+                    enemy.nextAttackTime = Date.now() + (enemy.attackCooldown || 1500);
+                    // Forzar transición a caminar o reposo
+                    enemy.animationState = isMoving ? 'caminar' : 'reposo';
+                    enemy.animationFrame = 0;
+                    enemy.animationTimer = 0;
+                } else {
+                    enemy.animationFrame = nextFrame;
+                    enemy.animationTimer = 0;
+                }
             }
 
+            // Caja de ataque extendida para el duende (el jefe tiene mayor alcance por su tamaño)
+            const rangeExtension = enemy.isBoss ? 70 : 45;
+            const attackBox = {
+                x: enemy.facing === -1 ? enemy.x - rangeExtension : enemy.x,
+                y: enemy.y,
+                width: enemy.width + rangeExtension,
+                height: enemy.height
+            };
+
             // Colisión con jugador (con i-frames para evitar daño continuo)
-            if (this.checkCollision(enemy, this.player)) {
-                const now = Date.now();
-                if (now - this.player.lastDamageTime > this.player.invincibilityDuration) {
-                    let damageReduction = 0;
-                    let useArmor = false;
+            if (this.checkCollision(attackBox, this.player)) {
+                // Sincronizar daño con la animación de ataque (frame de golpe es el 1 y no haber hecho daño en este ataque)
+                if (enemy.animationState === 'ataque' && enemy.animationFrame === 1 && !enemy.hasDealtDamage) {
+                    const now = Date.now();
+                    if (now - this.player.lastDamageTime > this.player.invincibilityDuration) {
+                        enemy.hasDealtDamage = true; // Marcar daño realizado en este ataque
+                        let damageReduction = 0;
+                        let useArmor = false;
 
-                    if (this.armorLevel > 0 && this.armorDurability > 0) {
-                        useArmor = true;
-                        if (this.armorLevel === 1) damageReduction = 0.10;
-                        else if (this.armorLevel === 2) damageReduction = 0.25;
-                        else if (this.armorLevel === 3) damageReduction = 0.40;
+                        if (this.armorLevel > 0 && this.armorDurability > 0) {
+                            useArmor = true;
+                            if (this.armorLevel === 1) damageReduction = 0.10;
+                            else if (this.armorLevel === 2) damageReduction = 0.25;
+                            else if (this.armorLevel === 3) damageReduction = 0.40;
 
-                        this.armorDurability--;
-                    }
-
-                    const scaledDamage = 10 * (1 - damageReduction);
-                    this.player.health -= scaledDamage;
-                    this.player.lastDamageTime = now;
-                    
-                    if (enemy.isBoss) {
-                        this.playSFX('impactoJefe');
-                    } else {
-                        this.playSFX('herido');
-                    }
-
-                    if (useArmor) {
-                        // Partículas de metal (armadura)
-                        this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#A9A9A9');
-                        this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
-
-                        if (this.armorDurability === 0) {
-                            // Efecto visual de armadura rota: muchas partículas de metal
-                            for (let p = 0; p < 2; p++) {
-                                this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#A9A9A9');
-                            }
-                            console.log("¡Armadura destruida!");
+                            this.armorDurability--;
                         }
-                    } else {
-                        this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
+
+                        const scaledDamage = 10 * (1 - damageReduction);
+                        this.player.health -= scaledDamage;
+                        this.player.lastDamageTime = now;
+                        
+                        if (enemy.isBoss) {
+                            this.playSFX('impactoJefe');
+                        } else {
+                            this.playSFX('herido');
+                        }
+
+                        if (useArmor) {
+                            // Partículas de metal (armadura)
+                            this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#A9A9A9');
+                            this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
+
+                            if (this.armorDurability === 0) {
+                                // Efecto visual de armadura rota: muchas partículas de metal
+                                for (let p = 0; p < 2; p++) {
+                                    this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#A9A9A9');
+                                }
+                                console.log("¡Armadura destruida!");
+                            }
+                        } else {
+                            this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
+                        }
                     }
                 }
             }
@@ -1228,7 +1306,10 @@ export class StoryMode {
             animationFrame: 0,
             animationTimer: 0,
             animationSpeed: 150, // ms entre frames
-            facing: -1 // -1 para izquierda, 1 para derecha
+            facing: -1, // -1 para izquierda, 1 para derecha
+            hasDealtDamage: false,
+            attackCooldown: 1500, // Cooldown de 1.5s
+            nextAttackTime: 0
         };
 
         // Salud fija para modo historia
@@ -1266,7 +1347,10 @@ export class StoryMode {
             animationTimer: 0,
             animationSpeed: 100, // un poco más rápido
             facing: -1,
-            isBoss: true
+            isBoss: true,
+            hasDealtDamage: false,
+            attackCooldown: 1200, // Cooldown de 1.2s para el jefe
+            nextAttackTime: 0
         };
 
         // Ajustar para tocar el suelo
@@ -1420,8 +1504,17 @@ export class StoryMode {
         // Obtener entorno del escenario
         const environment = this.environment;
 
-        // Manejar fondo - restaurar paralaje sincronizado
-        if (this.castleGif && this.castleGif.complete) {
+        // Manejar fondo - seleccionar imagen según timeOfDay
+        let activeBgImage = null;
+        if (this.timeOfDay === 'sunset') {
+            activeBgImage = this.tardeImageLoaded && this.tardeImage.complete ? this.tardeImage : null;
+        } else if (this.timeOfDay === 'night') {
+            activeBgImage = this.nocheImageLoaded && this.nocheImage.complete ? this.nocheImage : null;
+        } else {
+            activeBgImage = this.diaImageLoaded && this.diaImage.complete ? this.diaImage : (this.castleGifLoaded && this.castleGif.complete ? this.castleGif : null);
+        }
+
+        if (activeBgImage) {
             // Ocultar video si existe
             if (this.castleVideo) {
                 this.castleVideo.style.display = 'none';
@@ -1431,23 +1524,23 @@ export class StoryMode {
             this.ctx.fillStyle = environment.skyColor;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-            // Escalar el GIF para que cubra todo el alto de la pantalla, evitando el hueco azul arriba
-            const gifHeight = this.canvas.height;
-            const bgScale = gifHeight / this.castleGif.height;
-            const gifWidth = this.castleGif.width * bgScale;
-            const gifY = 0; // Pegado al techo
+            // Escalar la imagen para que cubra todo el alto de la pantalla, evitando el hueco azul arriba
+            const bgHeight = this.canvas.height;
+            const bgScale = bgHeight / activeBgImage.height;
+            const bgWidth = activeBgImage.width * bgScale;
+            const bgY = 0; // Pegado al techo
 
             // Dibujar múltiples capas de paralaje para mayor profundidad
             for (const layer of this.parallaxLayers) {
                 const cameraOffset = this.camera.x * layer.speed;
-                const repetitions = Math.ceil((this.canvas.width + gifWidth) / gifWidth) + 1;
+                const repetitions = Math.ceil((this.canvas.width + bgWidth) / bgWidth) + 1;
 
                 this.ctx.globalAlpha = layer.alpha;
 
                 // Dibujar múltiples copias para crear efecto infinito
                 for (let i = 0; i < repetitions; i++) {
-                    const gifX = (i * gifWidth) - (cameraOffset % gifWidth);
-                    this.ctx.drawImage(this.castleGif, gifX, gifY, gifWidth, gifHeight);
+                    const bgX = (i * bgWidth) - (cameraOffset % bgWidth);
+                    this.ctx.drawImage(activeBgImage, bgX, bgY, bgWidth, bgHeight);
                 }
             }
 
@@ -1798,7 +1891,103 @@ export class StoryMode {
             }
         }
 
+        // --- DIBUJAR JUGADOR ---
+        if (this.characterSpriteLoaded && this.characterSprite.complete) {
+            this.ctx.save();
 
+            // Parpadeo de invulnerabilidad
+            const now = Date.now();
+            if (now - this.player.lastDamageTime < this.player.invincibilityDuration) {
+                if (Math.floor(now / 75) % 2 === 0) {
+                    this.ctx.globalAlpha = 0.3; // Hacer parpadear al jugador haciéndolo semi-transparente
+                }
+            }
+
+            const playerCenterX = this.player.x + this.player.width / 2;
+
+            // Voltear si mira a la izquierda
+            if (this.player.facing < 0) {
+                this.ctx.translate(playerCenterX, this.player.y);
+                this.ctx.scale(-1, 1);
+                this.ctx.translate(-playerCenterX, -this.player.y);
+            }
+
+            const frameWidth = this.spriteConfig.frameWidth;
+            const frameHeight = this.spriteConfig.frameHeight;
+
+            // Obtener el frame absoluto basado en el estado
+            const animConfig = this.spriteConfig.animations[this.animationState] || this.spriteConfig.animations.idle;
+            // Asegurarse de no exceder los frames disponibles para la animación actual
+            const currentLocalFrame = this.animationFrame % ((animConfig.end - animConfig.start) + 1);
+            const absoluteFrameIndex = animConfig.start + currentLocalFrame;
+
+            // Calcular X e Y en la cuadrícula del spritesheet original (7 columnas)
+            const frameCol = absoluteFrameIndex % this.spriteConfig.framesPerRow;
+            const frameRow = Math.floor(absoluteFrameIndex / this.spriteConfig.framesPerRow);
+
+            const frameX = frameCol * frameWidth;
+            const frameY = frameRow * frameHeight;
+
+            // Escala para ajustar el tamaño del personaje (192px sprite adaptado al collider 40x60)
+            const scale = 0.8;
+            const scaledWidth = frameWidth * scale;
+            const scaledHeight = frameHeight * scale;
+
+            // Offset para centrar el sprite en el collider
+            const offsetX = playerCenterX - (scaledWidth / 2);
+            // El collider tiene 60 de alto, el sprite es más grande, alineamos a nivel inferior
+            // Ajustado a + 7 (el punto medio exacto) para que pise perfectamente sobre el pasto (tanto en el piso como en plataformas) sin hundirse ni flotar
+            const offsetY = (this.player.y + this.player.height) - scaledHeight + 7;
+
+            this.ctx.drawImage(
+                this.characterSprite,
+                frameX, frameY, frameWidth, frameHeight,
+                offsetX,
+                offsetY,
+                scaledWidth, scaledHeight
+            );
+
+            this.ctx.restore();
+        }
+        else {
+            // Fallback - dibujar rectángulo simple si no hay imagen
+            this.ctx.fillStyle = 'red';
+            this.ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height);
+        }
+
+        // Dibujar proyectiles con Flecha de Fe (horizontal)
+        for (const projectile of this.projectiles) {
+            if (projectile.isGolden) {
+                // Dibujar un resplandor dorado alrededor del proyectil
+                this.drawColoredGlow(this.ctx, projectile.x + projectile.width / 2, projectile.y + projectile.height / 2, 25, 'rgba(255, 215, 0, 0.6)');
+            }
+            if (this.arrowImageLoaded && this.arrowImage.complete) {
+                this.ctx.save();
+                
+                // Traducir al centro del proyectil para voltearlo si es necesario
+                this.ctx.translate(projectile.x + projectile.width / 2, projectile.y + projectile.height / 2);
+
+                // Voltear horizontalmente si va a la izquierda
+                if (projectile.velocityX < 0) {
+                    this.ctx.scale(-1, 1);
+                }
+
+                // Dibujar la flecha
+                this.ctx.drawImage(
+                    this.arrowImage,
+                    -projectile.width / 2,
+                    -projectile.height / 2,
+                    projectile.width,
+                    projectile.height
+                );
+
+                this.ctx.restore();
+            } else {
+                // Fallback - dibujar rectángulo simple
+                this.ctx.fillStyle = projectile.color;
+                this.ctx.fillRect(projectile.x, projectile.y, projectile.width, projectile.height);
+            }
+        }
 
         // Dibujar enemigos con diseño de duende
         for (const enemy of this.enemies) {
@@ -1894,103 +2083,6 @@ export class StoryMode {
                     enemy.height
                 );
             }
-        }
-
-
-
-        // Dibujar proyectiles con Espada de Fe (horizontal)
-        for (const projectile of this.projectiles) {
-            if (projectile.isGolden) {
-                // Dibujar un resplandor dorado alrededor del proyectil
-                this.drawColoredGlow(this.ctx, projectile.x + projectile.width / 2, projectile.y + projectile.height / 2, 25, 'rgba(255, 215, 0, 0.6)');
-            }
-            if (this.swordImageLoaded) {
-                // Dibujar Espada de Fe como proyectil horizontal
-                const swordWidth = 30;
-                const swordHeight = 20;
-
-                this.ctx.save();
-                this.ctx.translate(projectile.x + projectile.width / 2, projectile.y + projectile.height / 2);
-
-                // Rotar según la dirección del disparo
-                if (projectile.velocityX > 0) {
-                    // Disparo hacia la derecha - rotar 90° para ponerla horizontal
-                    this.ctx.rotate(Math.PI / 2);
-                } else {
-                    // Disparo hacia la izquierda - rotar -90° para ponerla horizontal invertida
-                    this.ctx.rotate(-Math.PI / 2);
-                }
-
-                // Dibujar la espada
-                this.ctx.drawImage(
-                    this.swordImage,
-                    -swordWidth / 2,
-                    -swordHeight / 2,
-                    swordWidth,
-                    swordHeight
-                );
-
-                this.ctx.restore();
-            } else {
-                // Fallback - dibujar rectángulo simple
-                this.ctx.fillStyle = projectile.color;
-                this.ctx.fillRect(projectile.x, projectile.y, projectile.width, projectile.height);
-            }
-        }
-
-        if (this.characterSpriteLoaded && this.characterSprite.complete) {
-            this.ctx.save();
-
-            const playerCenterX = this.player.x + this.player.width / 2;
-
-            // Voltear si mira a la izquierda
-            if (this.player.facing < 0) {
-                this.ctx.translate(playerCenterX, this.player.y);
-                this.ctx.scale(-1, 1);
-                this.ctx.translate(-playerCenterX, -this.player.y);
-            }
-
-            const frameWidth = this.spriteConfig.frameWidth;
-            const frameHeight = this.spriteConfig.frameHeight;
-
-            // Obtener el frame absoluto basado en el estado
-            const animConfig = this.spriteConfig.animations[this.animationState] || this.spriteConfig.animations.idle;
-            // Asegurarse de no exceder los frames disponibles para la animación actual
-            const currentLocalFrame = this.animationFrame % ((animConfig.end - animConfig.start) + 1);
-            const absoluteFrameIndex = animConfig.start + currentLocalFrame;
-
-            // Calcular X e Y en la cuadrícula del spritesheet original (7 columnas)
-            const frameCol = absoluteFrameIndex % this.spriteConfig.framesPerRow;
-            const frameRow = Math.floor(absoluteFrameIndex / this.spriteConfig.framesPerRow);
-
-            const frameX = frameCol * frameWidth;
-            const frameY = frameRow * frameHeight;
-
-            // Escala para ajustar el tamaño del personaje (192px sprite adaptado al collider 40x60)
-            const scale = 0.8;
-            const scaledWidth = frameWidth * scale;
-            const scaledHeight = frameHeight * scale;
-
-            // Offset para centrar el sprite en el collider
-            const offsetX = playerCenterX - (scaledWidth / 2);
-            // El collider tiene 60 de alto, el sprite es más grande, alineamos a nivel inferior
-            // Ajustado a + 7 (el punto medio exacto) para que pise perfectamente sobre el pasto (tanto en el piso como en plataformas) sin hundirse ni flotar
-            const offsetY = (this.player.y + this.player.height) - scaledHeight + 7;
-
-            this.ctx.drawImage(
-                this.characterSprite,
-                frameX, frameY, frameWidth, frameHeight,
-                offsetX,
-                offsetY,
-                scaledWidth, scaledHeight
-            );
-
-            this.ctx.restore();
-        }
-        else {
-            // Fallback - dibujar rectángulo simple si no hay imagen
-            this.ctx.fillStyle = 'red';
-            this.ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height);
         }
 
         // Dibujar partículas

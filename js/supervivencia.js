@@ -216,8 +216,6 @@ export class SupervivenciaGame {
             }
         };
 
-
-
         this.swordImage = new Image();
         this.swordImageLoaded = false;
         this.swordImage.onload = () => {
@@ -228,6 +226,12 @@ export class SupervivenciaGame {
             console.error('Error cargando Espada de Fe');
         };
         this.swordImage.src = 'img/Espada de Fe.png';
+
+        // Imagen del proyectil (Flecha de Fe)
+        this.arrowImage = new Image();
+        this.arrowImageLoaded = false;
+        this.arrowImage.onload = () => { this.arrowImageLoaded = true; };
+        this.arrowImage.src = 'img/flecha de fe.png';
 
         // Imagen del token
         this.tokenImage = new Image();
@@ -246,6 +250,34 @@ export class SupervivenciaGame {
         this.treeImageLoaded = false;
         this.treeImage.onload = () => { this.treeImageLoaded = true; };
         this.treeImage.src = 'img/arbol.png';
+
+        // Capas de paralaje para el fondo
+        this.parallaxLayers = [
+            { speed: 0.05, alpha: 0.3 }, // Capa más lejana
+            { speed: 0.1, alpha: 0.4 }, // Capa media
+            { speed: 0.15, alpha: 0.5 }  // Capa cercana
+        ];
+
+        // Imagenes de fondo para supervivencia
+        this.bosqueImage = new Image();
+        this.bosqueImageLoaded = false;
+        this.bosqueImage.onload = () => { this.bosqueImageLoaded = true; };
+        this.bosqueImage.src = 'img/bosque.png';
+
+        this.diaImage = new Image();
+        this.diaImageLoaded = false;
+        this.diaImage.onload = () => { this.diaImageLoaded = true; };
+        this.diaImage.src = 'img/dia.png';
+
+        this.tardeImage = new Image();
+        this.tardeImageLoaded = false;
+        this.tardeImage.onload = () => { this.tardeImageLoaded = true; };
+        this.tardeImage.src = 'img/tarde.png';
+
+        this.nocheImage = new Image();
+        this.nocheImageLoaded = false;
+        this.nocheImage.onload = () => { this.nocheImageLoaded = true; };
+        this.nocheImage.src = 'img/noche.png';
 
 
 
@@ -539,14 +571,17 @@ export class SupervivenciaGame {
         this.attackAnimationTimer = Date.now(); // Guardar tiempo de inicio de ataque
         this.player.velocityX = 0; // Detener movimiento horizontal inmediatamente al disparar
 
+        const projWidth = 35;
+        const projHeight = 10;
+
         const projectile = {
-            x: this.player.x + (this.player.facing > 0 ? this.player.width / 2 : -this.player.width / 2),
-            y: this.player.y,
-            width: 10,
-            height: 5,
+            x: this.player.x + (this.player.facing > 0 ? this.player.width : -projWidth),
+            y: this.player.y - 18, // Subir la Y para que salga alineada con la ballesta (en el hombro/pecho)
+            width: projWidth,
+            height: projHeight,
             velocityX: this.player.facing * 8,
             velocityY: 0,
-            color: this.player.color,
+            color: '#8B4513',
             owner: 'player'
         };
         this.projectiles.push(projectile);
@@ -607,10 +642,17 @@ export class SupervivenciaGame {
                 return false;
             }
 
-            // Colisión con enemigos
+            // Colisión con enemigos (usamos una hitbox extendida verticalmente para coincidir con la flecha alta)
             for (let i = this.enemies.length - 1; i >= 0; i--) {
                 const enemy = this.enemies[i];
-                if (this.checkCollision(projectile, enemy)) {
+                const verticalExtension = enemy.isBoss ? 0 : 30;
+                const enemyHitBox = {
+                    x: enemy.x,
+                    y: enemy.y - verticalExtension,
+                    width: enemy.width,
+                    height: enemy.height + verticalExtension
+                };
+                if (this.checkCollision(projectile, enemyHitBox)) {
                     // Restar vida al enemigo
                     enemy.health--;
 
@@ -716,7 +758,15 @@ export class SupervivenciaGame {
             const dy = this.player.y - enemy.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            if (distance > 0) {
+            // Calcular distancia de borde a borde (edge-to-edge) para la lógica de ataque
+            const horizontalGap = Math.max(0, Math.abs(this.player.x + this.player.width / 2 - (enemy.x + enemy.width / 2)) - (this.player.width + enemy.width) / 2);
+            const verticalGap = Math.max(0, Math.abs(this.player.y + this.player.height / 2 - (enemy.y + enemy.height / 2)) - (this.player.height + enemy.height) / 2);
+            const edgeDistance = Math.sqrt(horizontalGap * horizontalGap + verticalGap * verticalGap);
+
+            const attackDistanceLimit = enemy.isBoss ? 60 : 35;
+            const inRange = edgeDistance < attackDistanceLimit;
+
+            if (distance > 0 && !inRange) {
                 // Velocidad base de 1.5 escalada por dificultad
                 const baseEnemySpeed = 1.5;
                 const currentEnemySpeed = baseEnemySpeed * this.difficultyMultiplier;
@@ -773,26 +823,32 @@ export class SupervivenciaGame {
 
             // Determinar estado de animación
             const isMoving = Math.abs(dx) > 1;
-            const isAttacking = distance < 60; // Distancia para considerar ataque visual
+            const isWithinAttackDistance = inRange;
+            const nowTime = Date.now();
+            const canAttack = isWithinAttackDistance && (nowTime >= (enemy.nextAttackTime || 0));
 
-            if (isAttacking) {
-                if (enemy.animationState !== 'ataque') {
+            // Solo cambiamos el estado si el enemigo NO está atacando actualmente
+            if (enemy.animationState !== 'ataque') {
+                if (canAttack) {
                     enemy.animationState = 'ataque';
                     enemy.animationFrame = 0;
                     enemy.animationTimer = 0;
-                }
-            } else if (isMoving) {
-                if (enemy.animationState !== 'caminar') {
-                    enemy.animationState = 'caminar';
-                    enemy.animationFrame = 0;
-                    enemy.animationTimer = 0;
-                }
-                enemy.facing = dx > 0 ? 1 : -1;
-            } else {
-                if (enemy.animationState !== 'reposo') {
-                    enemy.animationState = 'reposo';
-                    enemy.animationFrame = 0;
-                    enemy.animationTimer = 0;
+                    enemy.hasDealtDamage = false;
+                } else if (isMoving) {
+                    if (enemy.animationState !== 'caminar') {
+                        enemy.animationState = 'caminar';
+                        enemy.animationFrame = 0;
+                        enemy.animationTimer = 0;
+                        enemy.hasDealtDamage = false;
+                    }
+                    enemy.facing = dx > 0 ? 1 : -1;
+                } else {
+                    if (enemy.animationState !== 'reposo') {
+                        enemy.animationState = 'reposo';
+                        enemy.animationFrame = 0;
+                        enemy.animationTimer = 0;
+                        enemy.hasDealtDamage = false;
+                    }
                 }
             }
 
@@ -801,22 +857,45 @@ export class SupervivenciaGame {
             const numFrames = (animConfig.end - animConfig.start) + 1;
 
             if (enemy.animationTimer >= enemy.animationSpeed) {
-                enemy.animationFrame = (enemy.animationFrame + 1) % numFrames;
-                enemy.animationTimer = 0;
+                const nextFrame = (enemy.animationFrame + 1) % numFrames;
+                if (enemy.animationState === 'ataque' && nextFrame === 0) {
+                    // El ataque ha terminado su ciclo completo, aplicar cooldown
+                    enemy.nextAttackTime = Date.now() + (enemy.attackCooldown || 1500);
+                    // Forzar transición a caminar o reposo
+                    enemy.animationState = isMoving ? 'caminar' : 'reposo';
+                    enemy.animationFrame = 0;
+                    enemy.animationTimer = 0;
+                } else {
+                    enemy.animationFrame = nextFrame;
+                    enemy.animationTimer = 0;
+                }
             }
 
-            // Colisión con jugador (con i-frames para evitar daño continuo)
-            if (this.checkCollision(enemy, this.player)) {
-                const now = Date.now();
-                if (now - this.player.lastDamageTime > this.player.invincibilityDuration) {
-                    // Daño base de 10 escalado por la dificultad
-                    const baseDamage = 10;
-                    const scaledDamage = baseDamage * this.difficultyMultiplier;
+            // Caja de ataque extendida para el duende (el jefe tiene mayor alcance por su tamaño)
+            const rangeExtension = enemy.isBoss ? 70 : 45;
+            const attackBox = {
+                x: enemy.facing === -1 ? enemy.x - rangeExtension : enemy.x,
+                y: enemy.y,
+                width: enemy.width + rangeExtension,
+                height: enemy.height
+            };
 
-                    this.player.health -= scaledDamage;
-                    this.player.lastDamageTime = now;
-                    this.playSFX('herido');
-                    this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
+            // Colisión con jugador (con i-frames para evitar daño continuo)
+            if (this.checkCollision(attackBox, this.player)) {
+                // Sincronizar daño con la animación de ataque (frame de golpe es el 1 y no haber hecho daño en este ataque)
+                if (enemy.animationState === 'ataque' && enemy.animationFrame === 1 && !enemy.hasDealtDamage) {
+                    const now = Date.now();
+                    if (now - this.player.lastDamageTime > this.player.invincibilityDuration) {
+                        enemy.hasDealtDamage = true; // Marcar daño realizado en este ataque
+                        // Daño base de 10 escalado por la dificultad
+                        const baseDamage = 10;
+                        const scaledDamage = baseDamage * this.difficultyMultiplier;
+
+                        this.player.health -= scaledDamage;
+                        this.player.lastDamageTime = now;
+                        this.playSFX('herido');
+                        this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
+                    }
                 }
             }
         }
@@ -964,7 +1043,10 @@ export class SupervivenciaGame {
             animationFrame: 0,
             animationTimer: 0,
             animationSpeed: 150, // ms entre frames
-            facing: -1 // -1 para izquierda, 1 para derecha
+            facing: -1, // -1 para izquierda, 1 para derecha
+            hasDealtDamage: false,
+            attackCooldown: 1500, // Cooldown de 1.5s
+            nextAttackTime: 0
         };
 
         // Ajustar salud según dificultad actual
@@ -1112,6 +1194,37 @@ export class SupervivenciaGame {
         this.ctx.fillStyle = environment.skyColor;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
+        // Dibujar fondo de escenario
+        let activeBgImage = null;
+        if (this.timeOfDay === 'sunset') {
+            activeBgImage = this.tardeImageLoaded && this.tardeImage.complete ? this.tardeImage : null;
+        } else if (this.timeOfDay === 'night') {
+            activeBgImage = this.nocheImageLoaded && this.nocheImage.complete ? this.nocheImage : null;
+        } else {
+            activeBgImage = this.diaImageLoaded && this.diaImage.complete ? this.diaImage : (this.bosqueImageLoaded && this.bosqueImage.complete ? this.bosqueImage : null);
+        }
+
+        if (activeBgImage) {
+            const bgHeight = this.canvas.height;
+            const bgScale = bgHeight / activeBgImage.height;
+            const bgWidth = activeBgImage.width * bgScale;
+            const bgY = 0;
+
+            // Dibujar múltiples capas de paralaje para mayor profundidad
+            for (const layer of this.parallaxLayers) {
+                const cameraOffset = this.camera.x * layer.speed;
+                const repetitions = Math.ceil((this.canvas.width + bgWidth) / bgWidth) + 1;
+
+                this.ctx.globalAlpha = layer.alpha;
+
+                for (let i = 0; i < repetitions; i++) {
+                    const bgX = (i * bgWidth) - (cameraOffset % bgWidth);
+                    this.ctx.drawImage(activeBgImage, bgX, bgY, bgWidth, bgHeight);
+                }
+            }
+            this.ctx.globalAlpha = 1.0;
+        }
+
         // Guardar estado del contexto para aplicar cámara
         this.ctx.save();
 
@@ -1153,6 +1266,100 @@ export class SupervivenciaGame {
             }
         }
 
+        // --- DIBUJAR JUGADOR ---
+        if (this.characterSpriteLoaded && this.characterSprite.complete) {
+            this.ctx.save();
+
+            // Parpadeo de invulnerabilidad
+            const now = Date.now();
+            if (now - this.player.lastDamageTime < this.player.invincibilityDuration) {
+                if (Math.floor(now / 75) % 2 === 0) {
+                    this.ctx.globalAlpha = 0.3; // Hacer parpadear al jugador haciéndolo semi-transparente
+                }
+            }
+
+            const playerCenterX = this.player.x + this.player.width / 2;
+
+            // Voltear si mira a la izquierda
+            if (this.player.facing < 0) {
+                this.ctx.translate(playerCenterX, this.player.y);
+                this.ctx.scale(-1, 1);
+                this.ctx.translate(-playerCenterX, -this.player.y);
+            }
+
+            const frameWidth = this.spriteConfig.frameWidth;
+            const frameHeight = this.spriteConfig.frameHeight;
+
+            // Obtener el frame absoluto basado en el estado
+            const animConfig = this.spriteConfig.animations[this.animationState] || this.spriteConfig.animations.idle;
+            // Asegurarse de no exceder los frames disponibles para la animación actual
+            const currentLocalFrame = this.animationFrame % ((animConfig.end - animConfig.start) + 1);
+            const absoluteFrameIndex = animConfig.start + currentLocalFrame;
+
+            // Calcular X e Y en la cuadrícula del spritesheet original (7 columnas)
+            const frameCol = absoluteFrameIndex % this.spriteConfig.framesPerRow;
+            const frameRow = Math.floor(absoluteFrameIndex / this.spriteConfig.framesPerRow);
+
+            const frameX = frameCol * frameWidth;
+            const frameY = frameRow * frameHeight;
+
+            // Escala para ajustar el tamaño del personaje (192px sprite adaptado al collider 40x60)
+            const scale = 0.8;
+            const scaledWidth = frameWidth * scale;
+            const scaledHeight = frameHeight * scale;
+
+            // Offset para centrar el sprite en el collider
+            const offsetX = playerCenterX - (scaledWidth / 2);
+            // El collider tiene 60 de alto, el sprite es más grande, alineamos a nivel inferior
+            // Se le suma 15 para que los pies toquen correctamente el suelo y no floten
+            const offsetY = (this.player.y + this.player.height) - scaledHeight + 15;
+
+            this.ctx.drawImage(
+                this.characterSprite,
+                frameX, frameY, frameWidth, frameHeight,
+                offsetX,
+                offsetY,
+                scaledWidth, scaledHeight
+            );
+
+            this.ctx.restore();
+        }
+        else {
+            // Fallback - dibujar rectángulo simple si no hay imagen
+            this.ctx.fillStyle = 'red';
+            this.ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height);
+        }
+
+        // Dibujar proyectiles con Flecha de Fe (horizontal)
+        for (const projectile of this.projectiles) {
+            if (this.arrowImageLoaded && this.arrowImage.complete) {
+                this.ctx.save();
+                
+                // Traducir al centro del proyectil para voltearlo si es necesario
+                this.ctx.translate(projectile.x + projectile.width / 2, projectile.y + projectile.height / 2);
+
+                // Voltear horizontalmente si va a la izquierda
+                if (projectile.velocityX < 0) {
+                    this.ctx.scale(-1, 1);
+                }
+
+                // Dibujar la flecha
+                this.ctx.drawImage(
+                    this.arrowImage,
+                    -projectile.width / 2,
+                    -projectile.height / 2,
+                    projectile.width,
+                    projectile.height
+                );
+
+                this.ctx.restore();
+            } else {
+                // Fallback - dibujar rectángulo simple
+                this.ctx.fillStyle = projectile.color;
+                this.ctx.fillRect(projectile.x, projectile.y, projectile.width, projectile.height);
+            }
+        }
+
         // Dibujar enemigos con diseño de duende
         for (const enemy of this.enemies) {
             if (this.duendeImageLoaded) {
@@ -1175,11 +1382,6 @@ export class SupervivenciaGame {
                 // Desplazar el sprite hacia abajo para que los pies toquen el suelo y no flote
                 // debido al espacio transparente en la parte inferior del frame del sprite sheet.
                 // Ajustado para que la base del pie coincida exactamente con la base del jugador.
-                // El jugador en modo supervivencia tiene un offset de +15 con frame de 192px (31px vacíos al fondo en spritesheet, escalado por 0.8)
-                // lo que resulta en pies a (y + height) - 9.8px.
-                // Para el duende, el espacio vacío al fondo es de 41px en spritesheet de 256px.
-                // Escalando, el espacio vacío real es duendeHeight * (41 / 256).
-                // Para que los pies queden en la misma posición relativa (-9.8px), sumamos ese valor.
                 const emptySpaceBottom = duendeHeight * (41 / 256);
                 const offsetY = emptySpaceBottom - 9.8;
                 const drawY = (enemy.y + enemy.height) - duendeHeight + offsetY;
@@ -1250,99 +1452,6 @@ export class SupervivenciaGame {
                     enemy.height
                 );
             }
-        }
-
-
-
-        // Dibujar proyectiles con Espada de Fe (horizontal)
-        for (const projectile of this.projectiles) {
-            if (this.swordImageLoaded) {
-                // Dibujar Espada de Fe como proyectil horizontal
-                const swordWidth = 30;
-                const swordHeight = 20;
-
-                this.ctx.save();
-                this.ctx.translate(projectile.x + projectile.width / 2, projectile.y + projectile.height / 2);
-
-                // Rotar según la dirección del disparo
-                if (projectile.velocityX > 0) {
-                    // Disparo hacia la derecha - rotar 90° para ponerla horizontal
-                    this.ctx.rotate(Math.PI / 2);
-                } else {
-                    // Disparo hacia la izquierda - rotar -90° para ponerla horizontal invertida
-                    this.ctx.rotate(-Math.PI / 2);
-                }
-
-                // Dibujar la espada
-                this.ctx.drawImage(
-                    this.swordImage,
-                    -swordWidth / 2,
-                    -swordHeight / 2,
-                    swordWidth,
-                    swordHeight
-                );
-
-                this.ctx.restore();
-            } else {
-                // Fallback - dibujar rectángulo simple
-                this.ctx.fillStyle = projectile.color;
-                this.ctx.fillRect(projectile.x, projectile.y, projectile.width, projectile.height);
-            }
-        }
-
-        if (this.characterSpriteLoaded && this.characterSprite.complete) {
-            this.ctx.save();
-
-            const playerCenterX = this.player.x + this.player.width / 2;
-
-            // Voltear si mira a la izquierda
-            if (this.player.facing < 0) {
-                this.ctx.translate(playerCenterX, this.player.y);
-                this.ctx.scale(-1, 1);
-                this.ctx.translate(-playerCenterX, -this.player.y);
-            }
-
-            const frameWidth = this.spriteConfig.frameWidth;
-            const frameHeight = this.spriteConfig.frameHeight;
-
-            // Obtener el frame absoluto basado en el estado
-            const animConfig = this.spriteConfig.animations[this.animationState] || this.spriteConfig.animations.idle;
-            // Asegurarse de no exceder los frames disponibles para la animación actual
-            const currentLocalFrame = this.animationFrame % ((animConfig.end - animConfig.start) + 1);
-            const absoluteFrameIndex = animConfig.start + currentLocalFrame;
-
-            // Calcular X e Y en la cuadrícula del spritesheet original (7 columnas)
-            const frameCol = absoluteFrameIndex % this.spriteConfig.framesPerRow;
-            const frameRow = Math.floor(absoluteFrameIndex / this.spriteConfig.framesPerRow);
-
-            const frameX = frameCol * frameWidth;
-            const frameY = frameRow * frameHeight;
-
-            // Escala para ajustar el tamaño del personaje (192px sprite adaptado al collider 40x60)
-            const scale = 0.8;
-            const scaledWidth = frameWidth * scale;
-            const scaledHeight = frameHeight * scale;
-
-            // Offset para centrar el sprite en el collider
-            const offsetX = playerCenterX - (scaledWidth / 2);
-            // El collider tiene 60 de alto, el sprite es más grande, alineamos a nivel inferior
-            // Se le suma 15 para que los pies toquen correctamente el suelo y no floten
-            const offsetY = (this.player.y + this.player.height) - scaledHeight + 15;
-
-            this.ctx.drawImage(
-                this.characterSprite,
-                frameX, frameY, frameWidth, frameHeight,
-                offsetX,
-                offsetY,
-                scaledWidth, scaledHeight
-            );
-
-            this.ctx.restore();
-        }
-        else {
-            // Fallback - dibujar rectángulo simple si no hay imagen
-            this.ctx.fillStyle = 'red';
-            this.ctx.fillRect(this.player.x, this.player.y, this.player.width, this.player.height);
         }
 
         // Dibujar partículas

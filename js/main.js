@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let storyMode;
     
     // Música del menú
-    const menuMusic = new Audio('songs/Arrival_at_the_Citadel.mp3');
+    const menuMusic = new Audio('songs/watermelon_beats-medieval-folk-music-2026-489261.ogg');
     menuMusic.loop = true;
     let musicStarted = false;
 
