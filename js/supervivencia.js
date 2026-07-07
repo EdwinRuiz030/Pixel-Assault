@@ -245,6 +245,18 @@ export class SupervivenciaGame {
         this.healingTokenImage.onload = () => { this.healingTokenImageLoaded = true; };
         this.healingTokenImage.src = 'img/curacion.png';
 
+        // Imagen del piso escenario
+        this.floorImage = new Image();
+        this.floorImageLoaded = false;
+        this.floorImage.onload = () => { this.floorImageLoaded = true; };
+        this.floorImage.src = 'img/piso escenario.png';
+
+        // Imagen de las plataformas sprite sheet (cuadros 0 al 5)
+        this.platformsImage = new Image();
+        this.platformsImageLoaded = false;
+        this.platformsImage.onload = () => { this.platformsImageLoaded = true; };
+        this.platformsImage.src = 'img/plataforma 1.png';
+
         // Imagen del árbol
         this.treeImage = new Image();
         this.treeImageLoaded = false;
@@ -306,6 +318,7 @@ export class SupervivenciaGame {
             return;
         }
 
+        this.loadUpgrades();
         this.setupControls();
         this.setupMouseControls();
         this.setupTouchControls();
@@ -313,6 +326,38 @@ export class SupervivenciaGame {
         this.gameLoop();
 
         console.log('Constructor SupervivenciaGame completado - Canvas listo');
+    }
+
+    loadUpgrades() {
+        this.healingTokensOwned = parseInt(localStorage.getItem('storyHealingTokens') || '0');
+        this.goldCrossbowsOwned = parseInt(localStorage.getItem('storyGoldCrossbows') || '0');
+        this.armorLevel = parseInt(localStorage.getItem('storyArmorLevel') || '0');
+        this.armorDurability = this.armorLevel > 0 ? 3 : 0;
+        this.goldCrossbowActive = false;
+        this.goldCrossbowTimer = 0;
+    }
+
+    useHealingToken() {
+        if (this.gameOver || this.paused || this.victory) return;
+        if (this.healingTokensOwned > 0 && this.player.health < this.player.maxHealth) {
+            this.healingTokensOwned--;
+            localStorage.setItem('storyHealingTokens', this.healingTokensOwned);
+            this.player.health = Math.min(this.player.maxHealth, this.player.health + 50);
+            this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height - 30, '#32CD32'); // Verdes
+            console.log('Token de curación usado. Restantes:', this.healingTokensOwned);
+        }
+    }
+
+    useGoldCrossbow() {
+        if (this.gameOver || this.paused || this.victory) return;
+        if (this.goldCrossbowsOwned > 0 && !this.goldCrossbowActive) {
+            this.goldCrossbowsOwned--;
+            localStorage.setItem('storyGoldCrossbows', this.goldCrossbowsOwned);
+            this.goldCrossbowActive = true;
+            this.goldCrossbowTimer = 5000; // 5 segundos
+            this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height - 30, '#FFD700'); // Doradas
+            console.log('Ballesta de oro usada. Cargas restantes:', this.goldCrossbowsOwned);
+        }
     }
 
     generatePlatforms() {
@@ -416,17 +461,17 @@ export class SupervivenciaGame {
 
     generateTrees() {
         const trees = [];
-        const numTrees = 15; // Menos árboles porque supervivencia es más corto/estático o infinito? (worldWidth is 3000)
+        const numTrees = 15; // Cantidad de árboles en el escenario
 
         let spawnedTrees = 0;
         let attempts = 0;
 
         // Intentar colocar árboles solo donde no haya plataformas flotantes
-        while (spawnedTrees < numTrees && attempts < 200) {
+        while (spawnedTrees < numTrees && attempts < 500) {
             attempts++;
-            const xPos = Math.random() * this.worldWidth;
-            const width = 180 + Math.random() * 120; // Ancho entre 180 y 300
-            const height = width * 1.0; // Proporción 1:1
+            const xPos = 100 + Math.random() * (this.worldWidth - 400);
+            const width = 150 + Math.random() * 130; // Ancho variable entre 150 y 280
+            const height = width * (0.95 + Math.random() * 0.1); // Proporción variada entre 0.95 y 1.05
             const groundY = this.config.height - 50;
 
             // Verificar superposición horizontal con plataformas
@@ -435,6 +480,19 @@ export class SupervivenciaGame {
                 if (!plat.isFloor) {
                     // Rango horizontal con margen de 20px
                     if (xPos + width + 20 > plat.x && xPos - 20 < plat.x + plat.width) {
+                        overlaps = true;
+                        break;
+                    }
+                }
+            }
+
+            // Verificar superposición excesiva con otros árboles para dispersarlos
+            if (!overlaps) {
+                for (const existingTree of trees) {
+                    // Si el centro de los dos árboles está a menos de 220 píxeles, se consideran demasiado juntos
+                    const centerNew = xPos + width / 2;
+                    const centerExisting = existingTree.x + existingTree.width / 2;
+                    if (Math.abs(centerNew - centerExisting) < 220) {
                         overlaps = true;
                         break;
                     }
@@ -463,6 +521,14 @@ export class SupervivenciaGame {
     setupControls() {
         window.addEventListener('keydown', (e) => {
             this.keys[e.code] = true;
+
+            // Uso de consumibles comprados
+            if (e.code === 'KeyH') {
+                this.useHealingToken();
+            }
+            if (e.code === 'KeyB' || e.code === 'KeyV') {
+                this.useGoldCrossbow();
+            }
         });
 
         window.addEventListener('keyup', (e) => {
@@ -571,17 +637,18 @@ export class SupervivenciaGame {
         this.attackAnimationTimer = Date.now(); // Guardar tiempo de inicio de ataque
         this.player.velocityX = 0; // Detener movimiento horizontal inmediatamente al disparar
 
-        const projWidth = 35;
-        const projHeight = 10;
+        const projWidth = this.goldCrossbowActive ? 45 : 35;
+        const projHeight = this.goldCrossbowActive ? 15 : 10;
 
         const projectile = {
             x: this.player.x + (this.player.facing > 0 ? this.player.width : -projWidth),
             y: this.player.y - 18, // Subir la Y para que salga alineada con la ballesta (en el hombro/pecho)
             width: projWidth,
             height: projHeight,
-            velocityX: this.player.facing * 8,
+            velocityX: this.player.facing * (this.goldCrossbowActive ? 11 : 8),
             velocityY: 0,
-            color: '#8B4513',
+            color: this.goldCrossbowActive ? '#FFD700' : '#8B4513',
+            isGolden: this.goldCrossbowActive,
             owner: 'player'
         };
         this.projectiles.push(projectile);
@@ -632,6 +699,14 @@ export class SupervivenciaGame {
             }
         }
 
+        // Actualizar temporizador de ballesta de oro
+        if (this.goldCrossbowActive) {
+            this.goldCrossbowTimer -= deltaTime;
+            if (this.goldCrossbowTimer <= 0) {
+                this.goldCrossbowActive = false;
+            }
+        }
+
         // Actualizar proyectiles
         this.projectiles = this.projectiles.filter(projectile => {
             projectile.x += projectile.velocityX * dt;
@@ -654,13 +729,14 @@ export class SupervivenciaGame {
                 };
                 if (this.checkCollision(projectile, enemyHitBox)) {
                     // Restar vida al enemigo
-                    enemy.health--;
+                    const dmg = projectile.isGolden ? 2 : 1;
+                    enemy.health -= dmg;
 
                     // Reproducir efecto de sonido de golpe
                     this.playSFX('golpe');
 
                     // Crear partículas de impacto
-                    this.createParticles(projectile.x, projectile.y, '#FF00FF');
+                    this.createParticles(projectile.x, projectile.y, projectile.isGolden ? '#FFD700' : '#FF00FF');
 
                     if (enemy.health <= 0) {
                         this.enemies.splice(i, 1);
@@ -689,9 +765,8 @@ export class SupervivenciaGame {
         // Actualizar tiempo de supervivencia
         this.player.survivalTime = Math.floor((Date.now() - this.levelStartTime) / 1000);
 
-        // Actualizar multiplicador de dificultad (cada minuto aumenta 0.5x)
-        const minutesElapsed = Math.floor(this.player.survivalTime / 60);
-        this.difficultyMultiplier = 1.0 + (minutesElapsed * 0.5);
+        // Actualizar multiplicador de dificultad continuamente (aumenta 0.1x cada 10 segundos para mayor dinamismo)
+        this.difficultyMultiplier = 1.0 + (this.player.survivalTime * 0.01);
 
         // Lógica Anti-Camping
         const distanceMoved = Math.abs(this.player.x - this.lastPlayerX);
@@ -705,12 +780,6 @@ export class SupervivenciaGame {
         } else {
             this.playerStillTimer = 0;
             this.lastPlayerX = this.player.x;
-        }
-
-        // Verificar condición de victoria
-        if (this.player.survivalTime >= this.targetSurvivalTime) {
-            this.victory = true;
-            this.paused = true; // Pausar juego al ganar
         }
 
         // Actualizar tokens de curación
@@ -887,14 +956,32 @@ export class SupervivenciaGame {
                     const now = Date.now();
                     if (now - this.player.lastDamageTime > this.player.invincibilityDuration) {
                         enemy.hasDealtDamage = true; // Marcar daño realizado en este ataque
-                        // Daño base de 10 escalado por la dificultad
+                        let damageReduction = 0;
+                        let useArmor = false;
+
+                        if (this.armorLevel > 0 && this.armorDurability > 0) {
+                            useArmor = true;
+                            if (this.armorLevel === 1) damageReduction = 0.10;
+                            else if (this.armorLevel === 2) damageReduction = 0.25;
+                            else if (this.armorLevel === 3) damageReduction = 0.40;
+
+                            this.armorDurability--;
+                        }
+
+                        // Daño base de 10 escalado por la dificultad y mitigado por la armadura
                         const baseDamage = 10;
-                        const scaledDamage = baseDamage * this.difficultyMultiplier;
+                        const scaledDamage = baseDamage * this.difficultyMultiplier * (1 - damageReduction);
 
                         this.player.health -= scaledDamage;
                         this.player.lastDamageTime = now;
                         this.playSFX('herido');
-                        this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
+                        
+                        if (useArmor) {
+                            // Partículas de metal de color gris plateado
+                            this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#D3D3D3');
+                        } else {
+                            this.createParticles(this.player.x + this.player.width / 2, this.player.y + this.player.height / 2, '#FF0000');
+                        }
                     }
                 }
             }
@@ -1240,8 +1327,35 @@ export class SupervivenciaGame {
 
         // Dibujar plataformas
         for (const platform of this.platforms) {
-            this.ctx.fillStyle = platform.color;
-            this.ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+            if (platform.isFloor && this.floorImageLoaded && this.floorImage.complete) {
+                this.ctx.save();
+                const imgWidth = this.floorImage.width || 1;
+                const imgHeight = this.floorImage.height || 1;
+
+                const drawHeight = 200; // Altura forzada
+                const scaleX = drawHeight / imgHeight;
+                const drawWidth = imgWidth * scaleX;
+
+                const drawY = this.canvas.height - drawHeight;
+
+                for (let i = platform.x; i < platform.x + platform.width; i += drawWidth) {
+                    this.ctx.drawImage(this.floorImage, i, drawY, drawWidth, drawHeight);
+                }
+
+                this.ctx.restore();
+            } else if (!platform.isFloor && this.platformsImageLoaded && this.platformsImage.complete) {
+                // Dibujar plataforma flotante con la imagen única
+                const drawHeight = platform.width * (this.platformsImage.height / this.platformsImage.width);
+                const offsetY = 27;
+
+                this.ctx.drawImage(
+                    this.platformsImage,
+                    platform.x, platform.y - offsetY, platform.width, drawHeight
+                );
+            } else {
+                this.ctx.fillStyle = platform.color;
+                this.ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+            }
         }
 
         // Dibujar gemas
@@ -1689,11 +1803,11 @@ export class SupervivenciaGame {
 
             this.ctx.restore();
 
-            // HUD — Tiempo restante y Dificultad (Centro Superior)
+            // HUD — Tiempo transcurrido y Dificultad (Centro Superior)
             this.ctx.save();
-            const remainingTime = Math.max(0, this.targetSurvivalTime - this.player.survivalTime);
-            const mins = Math.floor(remainingTime / 60);
-            const secs = remainingTime % 60;
+            const elapsedTime = this.player.survivalTime;
+            const mins = Math.floor(elapsedTime / 60);
+            const secs = elapsedTime % 60;
             const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
             this.ctx.font = 'bold 28px Georgia, serif';
@@ -1702,8 +1816,16 @@ export class SupervivenciaGame {
             // Sombra del tiempo
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             this.ctx.fillText(timeStr, this.canvas.width / 2 + 2, 42);
-            // Color del tiempo (cambia a rojo si queda poco)
-            this.ctx.fillStyle = remainingTime < 30 ? '#FF4500' : '#FFD700';
+            // Color dinámico según dificultad/tiempo (verde -> dorado -> naranja -> rojo)
+            let timeColor = '#32CD32'; // Verde
+            if (elapsedTime > 120) {
+                timeColor = '#FF4500'; // Rojo-naranja
+            } else if (elapsedTime > 60) {
+                timeColor = '#FFA500'; // Naranja
+            } else if (elapsedTime > 30) {
+                timeColor = '#FFD700'; // Dorado
+            }
+            this.ctx.fillStyle = timeColor;
             this.ctx.fillText(timeStr, this.canvas.width / 2, 40);
 
             // Nivel de Dificultad / Peligro
@@ -1724,15 +1846,74 @@ export class SupervivenciaGame {
 
             // Score
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            this.ctx.fillText(`⚔ Score: ${this.score}`, barX + 1, barY + height + 11);
+            this.ctx.fillText('⚔', barX + 1, barY + height + 11);
+            this.ctx.fillText(`Score: ${this.score}`, barX + 23, barY + height + 11);
             this.ctx.fillStyle = '#FFD700';
-            this.ctx.fillText(`⚔ Score: ${this.score}`, barX, barY + height + 10);
+            this.ctx.fillText('⚔', barX, barY + height + 10);
+            this.ctx.fillText(`Score: ${this.score}`, barX + 22, barY + height + 10);
 
             // Oro
+            if (this.tokenImageLoaded && this.tokenImage.complete) {
+                this.ctx.drawImage(this.tokenImage, barX, barY + height + 30, 16, 16);
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.fillText(`Oro: ${this.player.gems}`, barX + 23, barY + height + 31);
+                this.ctx.fillStyle = '#FFD700';
+                this.ctx.fillText(`Oro: ${this.player.gems}`, barX + 22, barY + height + 30);
+            } else {
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.fillText(`Oro: ${this.player.gems}`, barX + 23, barY + height + 31);
+                this.ctx.fillStyle = '#FFD700';
+                this.ctx.fillText(`Oro: ${this.player.gems}`, barX + 22, barY + height + 30);
+            }
+
+            // --- HUD DE MEJORAS COMPRADAS ---
+            // Tokens de curación (H)
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            this.ctx.fillText(`🪙 Oro: ${this.player.gems}`, barX + 1, barY + height + 31);
-            this.ctx.fillStyle = '#FFD700';
-            this.ctx.fillText(`🪙 Oro: ${this.player.gems}`, barX, barY + height + 30);
+            this.ctx.fillText('💚', barX + 1, barY + height + 51);
+            this.ctx.fillText(`Cura (H): ${this.healingTokensOwned}`, barX + 23, barY + height + 51);
+            this.ctx.fillStyle = '#32CD32'; // Verde
+            this.ctx.fillText('💚', barX, barY + height + 50);
+            this.ctx.fillText(`Cura (H): ${this.healingTokensOwned}`, barX + 22, barY + height + 50);
+
+            // Ballestas de oro (B)
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillText('🏹', barX + 1, barY + height + 71);
+            this.ctx.fillText(`Ballesta (B): ${this.goldCrossbowsOwned}`, barX + 23, barY + height + 71);
+            this.ctx.fillStyle = '#FFE5C2';
+            this.ctx.fillText('🏹', barX, barY + height + 70);
+            this.ctx.fillText(`Ballesta (B): ${this.goldCrossbowsOwned}`, barX + 22, barY + height + 70);
+
+            // Armadura
+            let armorText = "";
+            let armorColor = "#888888";
+            if (this.armorLevel > 0) {
+                if (this.armorDurability > 0) {
+                    armorText = `Armadura Lvl ${this.armorLevel}: ${this.armorDurability}/3`;
+                    armorColor = "#C0C0C0"; // Plateado
+                } else {
+                    armorText = `Armadura Lvl ${this.armorLevel}: ROTA 💥`;
+                    armorColor = "#ff4d4d"; // Rojo
+                }
+            } else {
+                armorText = `Armadura: Ninguna`;
+            }
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillText('🛡️', barX + 1, barY + height + 91);
+            this.ctx.fillText(armorText, barX + 23, barY + height + 91);
+            this.ctx.fillStyle = armorColor;
+            this.ctx.fillText('🛡️', barX, barY + height + 90);
+            this.ctx.fillText(armorText, barX + 22, barY + height + 90);
+
+            // Indicador de ballesta de oro activa
+            if (this.goldCrossbowActive) {
+                const pulse = Math.abs(Math.sin(Date.now() / 200));
+                const secondsLeft = (this.goldCrossbowTimer / 1000).toFixed(1);
+                const activeText = `⚡ BALLESTA ACTIVA: ${secondsLeft}s`;
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.fillText(activeText, barX + 1, barY + height + 111);
+                this.ctx.fillStyle = `rgba(255, 215, 0, ${0.6 + pulse * 0.4})`; // Dorado parpadeante/palpitante
+                this.ctx.fillText(activeText, barX, barY + height + 110);
+            }
 
             this.ctx.restore();
         }
@@ -1885,11 +2066,16 @@ export class SupervivenciaGame {
         this.ctx.fillStyle = '#B8976A';
         this.ctx.fillText('¿Deseas volver a empezar?', cx, textY + fontSize * 0.9);
 
+        // Calcular tiempo de supervivencia
+        const mins = Math.floor(this.player.survivalTime / 60);
+        const secs = this.player.survivalTime % 60;
+        const timeStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
         // ── Estadísticas ──
         const statsY = cy + 50;
         this.ctx.font = `${Math.min(w * 0.018, 14)}px Georgia, serif`;
         this.ctx.fillStyle = '#7A6844';
-        this.ctx.fillText(`⚔ Score: ${this.score}   |   👹 Enemigos: ${this.player.enemiesDefeated}   |   🪙 Oro: ${this.player.gems}`, cx, statsY);
+        this.ctx.fillText(`⚔ Score: ${this.score}   |   👹 Enemigos: ${this.player.enemiesDefeated}   |   ⏱️ Tiempo: ${timeStr}   |   Oro: ${this.player.gems}`, cx, statsY);
 
         // ── Botones medievales ──
         const btnW = Math.min(w * 0.16, 140);
@@ -2053,6 +2239,7 @@ export class SupervivenciaGame {
 
     restartGame() {
         console.log('Reiniciando el juego desde cero...');
+        this.loadUpgrades();
         // Reiniciar estados principales
         this.gameOver = false;
         this.victory = false;

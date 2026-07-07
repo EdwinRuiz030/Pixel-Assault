@@ -2335,47 +2335,63 @@ export class StoryMode {
 
             // Score
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            this.ctx.fillText(`⚔ Score: ${this.score}`, barX + 1, barY + height + 11);
+            this.ctx.fillText('⚔', barX + 1, barY + height + 11);
+            this.ctx.fillText(`Score: ${this.score}`, barX + 23, barY + height + 11);
             this.ctx.fillStyle = '#FFD700';
-            this.ctx.fillText(`⚔ Score: ${this.score}`, barX, barY + height + 10);
+            this.ctx.fillText('⚔', barX, barY + height + 10);
+            this.ctx.fillText(`Score: ${this.score}`, barX + 22, barY + height + 10);
 
             // Oro
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            this.ctx.fillText(`🪙 Oro: ${this.player.gems}`, barX + 1, barY + height + 31);
-            this.ctx.fillStyle = '#FFD700';
-            this.ctx.fillText(`🪙 Oro: ${this.player.gems}`, barX, barY + height + 30);
+            if (this.tokenImageLoaded && this.tokenImage.complete) {
+                this.ctx.drawImage(this.tokenImage, barX, barY + height + 30, 16, 16);
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.fillText(`Oro: ${this.player.gems}`, barX + 23, barY + height + 31);
+                this.ctx.fillStyle = '#FFD700';
+                this.ctx.fillText(`Oro: ${this.player.gems}`, barX + 22, barY + height + 30);
+            } else {
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.fillText(`Oro: ${this.player.gems}`, barX + 23, barY + height + 31);
+                this.ctx.fillStyle = '#FFD700';
+                this.ctx.fillText(`Oro: ${this.player.gems}`, barX + 22, barY + height + 30);
+            }
 
             // --- HUD DE MEJORAS COMPRADAS ---
             // Tokens de curación (H)
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            this.ctx.fillText(`💚 Cura (H): ${this.healingTokensOwned}`, barX + 1, barY + height + 51);
+            this.ctx.fillText('💚', barX + 1, barY + height + 51);
+            this.ctx.fillText(`Cura (H): ${this.healingTokensOwned}`, barX + 23, barY + height + 51);
             this.ctx.fillStyle = '#32CD32'; // Verde
-            this.ctx.fillText(`💚 Cura (H): ${this.healingTokensOwned}`, barX, barY + height + 50);
+            this.ctx.fillText('💚', barX, barY + height + 50);
+            this.ctx.fillText(`Cura (H): ${this.healingTokensOwned}`, barX + 22, barY + height + 50);
 
             // Ballestas de oro (B)
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            this.ctx.fillText(`🏹 Ballesta (B): ${this.goldCrossbowsOwned}`, barX + 1, barY + height + 71);
+            this.ctx.fillText('🏹', barX + 1, barY + height + 71);
+            this.ctx.fillText(`Ballesta (B): ${this.goldCrossbowsOwned}`, barX + 23, barY + height + 71);
             this.ctx.fillStyle = '#FFE5C2';
-            this.ctx.fillText(`🏹 Ballesta (B): ${this.goldCrossbowsOwned}`, barX, barY + height + 70);
+            this.ctx.fillText('🏹', barX, barY + height + 70);
+            this.ctx.fillText(`Ballesta (B): ${this.goldCrossbowsOwned}`, barX + 22, barY + height + 70);
 
             // Armadura
             let armorText = "";
             let armorColor = "#888888";
             if (this.armorLevel > 0) {
                 if (this.armorDurability > 0) {
-                    armorText = `🛡️ Armadura Lvl ${this.armorLevel}: ${this.armorDurability}/3`;
+                    armorText = `Armadura Lvl ${this.armorLevel}: ${this.armorDurability}/3`;
                     armorColor = "#C0C0C0"; // Plateado
                 } else {
-                    armorText = `🛡️ Armadura Lvl ${this.armorLevel}: ROTA 💥`;
+                    armorText = `Armadura Lvl ${this.armorLevel}: ROTA 💥`;
                     armorColor = "#ff4d4d"; // Rojo
                 }
             } else {
-                armorText = `🛡️ Armadura: Ninguna`;
+                armorText = `Armadura: Ninguna`;
             }
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            this.ctx.fillText(armorText, barX + 1, barY + height + 91);
+            this.ctx.fillText('🛡️', barX + 1, barY + height + 91);
+            this.ctx.fillText(armorText, barX + 23, barY + height + 91);
             this.ctx.fillStyle = armorColor;
-            this.ctx.fillText(armorText, barX, barY + height + 90);
+            this.ctx.fillText('🛡️', barX, barY + height + 90);
+            this.ctx.fillText(armorText, barX + 22, barY + height + 90);
 
             // Indicador de ballesta de oro activa
             if (this.goldCrossbowActive) {
@@ -2733,7 +2749,7 @@ export class StoryMode {
         const statsY = cy + 50;
         this.ctx.font = `${Math.min(w * 0.018, 14)}px Georgia, serif`;
         this.ctx.fillStyle = '#7A6844';
-        this.ctx.fillText(`⚔ Score: ${this.score}   |   👹 Enemigos: ${this.player.enemiesDefeated}   |   🪙 Oro: ${this.player.gems}`, cx, statsY);
+        this.ctx.fillText(`⚔ Score: ${this.score}   |   👹 Enemigos: ${this.player.enemiesDefeated}   |   Oro: ${this.player.gems}`, cx, statsY);
 
         // ── Botones medievales ──
         const btnW = Math.min(w * 0.16, 140);

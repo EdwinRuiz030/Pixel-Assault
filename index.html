@@ -53,18 +53,6 @@
         
         <div id="game" class="screen hidden">
             <canvas id="game-canvas"></canvas>
-            <!-- Controles móviles responsivos -->
-            <div id="mobile-controls" class="hidden">
-                <div class="movement-controls">
-                    <button id="btn-left" class="joy-btn">◀</button>
-                    <button id="btn-right" class="joy-btn">▶</button>
-                </div>
-                <div class="action-controls">
-                    <button id="btn-jump" class="joy-btn">▲</button>
-                    <button id="btn-attack" class="joy-btn">⚔</button>
-                    <button id="btn-pause" class="joy-btn">⏸</button>
-                </div>
-            </div>
         </div>
         
         <div id="supervivencia" class="screen hidden">
@@ -109,7 +97,7 @@
             <h2>TIENDA DE MEJORAS</h2>
             
             <div class="shop-gold-container">
-                <span class="shop-gold-label">🪙 ORO DISPONIBLE:</span>
+                <span class="shop-gold-label"><img src="img/token.png" alt="Oro" class="shop-gold-icon"> ORO DISPONIBLE:</span>
                 <span id="shop-gold-count" class="shop-gold-val">0</span>
             </div>
             
@@ -119,7 +107,7 @@
                     <h3><img src="img/curacion.png" alt="Curación" class="shop-item-icon"> Token de Curación</h3>
                     <p>Cura 50 HP al instante. Se activa en juego con la tecla 'H'.</p>
                     <div class="shop-item-controls">
-                        <span>Precio: 25 🪙</span>
+                        <span>Precio: 25 <img src="img/token.png" alt="Oro" class="shop-gold-icon"></span>
                         <span>Posees: <span id="shop-token-count">0</span></span>
                     </div>
                     <button id="buy-token-btn" class="button-13" role="button">
@@ -134,7 +122,7 @@
                     <h3>🏹 Ballesta de Oro</h3>
                     <p>Proyectiles dorados de daño doble (2 HP) por 5 segundos. Tecla 'B' o 'V'.</p>
                     <div class="shop-item-controls">
-                        <span>Precio: 40 🪙</span>
+                        <span>Precio: 40 <img src="img/token.png" alt="Oro" class="shop-gold-icon"></span>
                         <span>Posees: <span id="shop-crossbow-count">0</span></span>
                     </div>
                     <button id="buy-crossbow-btn" class="button-13" role="button">
@@ -149,7 +137,7 @@
                     <h3><img src="img/resistencia.png" alt="Resistencia" class="shop-item-icon"> Armadura de Resistencia</h3>
                     <p>Reduce daño (Lvl 1: -10%, Lvl 2: -25%, Lvl 3: -40%). Dura 3 golpes por vida.</p>
                     <div class="shop-item-controls">
-                        <span id="shop-armor-price-label">Precio: 50 🪙</span>
+                        <span id="shop-armor-price-label">Precio: 50 <img src="img/token.png" alt="Oro" class="shop-gold-icon"></span>
                         <span id="shop-armor-level-label">Nivel: 0/3</span>
                     </div>
                     <button id="upgrade-armor-btn" class="button-13" role="button">
@@ -193,7 +181,7 @@
             </button>
         </div>
 
-        <div id="settings-menu" class="screen hidden" style="background: rgba(0, 0, 0, 0.85);">
+        <div id="settings-menu" class="screen hidden">
             <h2>AJUSTES</h2>
             <div class="settings-grid">
                 <div class="setting-item">
@@ -271,6 +259,19 @@
                         <span class="button-13-border"></span>
                     </button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Controles móviles responsivos -->
+        <div id="mobile-controls" class="hidden">
+            <div class="movement-controls">
+                <button id="btn-left" class="joy-btn">◀</button>
+                <button id="btn-right" class="joy-btn">▶</button>
+            </div>
+            <div class="action-controls">
+                <button id="btn-jump" class="joy-btn">▲</button>
+                <button id="btn-attack" class="joy-btn">⚔</button>
+                <button id="btn-pause" class="joy-btn">⏸</button>
             </div>
         </div>
 

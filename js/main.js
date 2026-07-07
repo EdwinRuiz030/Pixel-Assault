@@ -114,6 +114,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // Mostrar la pantalla solicitada
         document.getElementById(screen).classList.remove('hidden');
         
+        // Mostrar/ocultar controles móviles según la pantalla y si es táctil
+        const mobileControls = document.getElementById('mobile-controls');
+        if (mobileControls) {
+            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            if (isTouchDevice && (screen === 'game' || screen === 'supervivencia')) {
+                mobileControls.classList.remove('hidden');
+            } else {
+                mobileControls.classList.add('hidden');
+            }
+        }
+        
         // Manejar música según la pantalla
         if (screen === 'menu' || screen === 'controls' || screen === 'settings-menu' || screen === 'shop-menu' || screen === 'consent-screen') {
             startMenuMusic();
@@ -306,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const textSpan = upgradeArmorBtn.querySelector('.text');
             if (textSpan) textSpan.textContent = 'MÁXIMO';
         } else {
-            shopArmorPriceLabel.textContent = `Precio: ${armorCost} 🪙`;
+            shopArmorPriceLabel.innerHTML = `Precio: ${armorCost} <img src="img/token.png" alt="Oro" class="shop-gold-icon">`;
             const textSpan = upgradeArmorBtn.querySelector('.text');
             if (textSpan) textSpan.textContent = 'MEJORAR';
             if (gold >= armorCost) {
