@@ -65,6 +65,7 @@ export class SupervivenciaGame {
             height: this.config.height
         };
         this.worldWidth = 10000;
+        this.generatedWorldEnd = 10000;
 
         // Entorno del juego
         this.environment = {
@@ -516,7 +517,78 @@ export class SupervivenciaGame {
         return trees;
     }
 
+    generateNextChunk(start, end) {
+        const groundY = this.config.height - 50;
 
+        // Generar plataformas flotantes de forma procedimental en el rango [start, end]
+        let currentX = start + 100;
+        while (currentX < end - 100) {
+            // Distancia entre plataformas consecutivas
+            const step = 150 + Math.random() * 150;
+            currentX += step;
+            if (currentX >= end - 100) break;
+
+            const width = 90 + Math.random() * 70;
+            const heightLevel = Math.random() > 0.5 ? 1 : 2;
+            const y = heightLevel === 1 
+                ? groundY - 60 - Math.random() * 40
+                : groundY - 140 - Math.random() * 70;
+            
+            this.platforms.push({
+                x: currentX,
+                y: y,
+                width: width,
+                height: 20,
+                color: this.environment.platformColor
+            });
+        }
+
+        // Generar árboles de forma procedimental en el rango [start, end]
+        let spawnedTrees = 0;
+        let attempts = 0;
+        while (spawnedTrees < 3 && attempts < 50) {
+            attempts++;
+            const xPos = start + Math.random() * (end - start - 200);
+            const width = 150 + Math.random() * 130;
+            const height = width * (0.95 + Math.random() * 0.1);
+            
+            let overlaps = false;
+            // Verificar superposición con plataformas flotantes
+            for (const plat of this.platforms) {
+                if (!plat.isFloor && plat.x + plat.width > xPos - 20 && plat.x < xPos + width + 20) {
+                    overlaps = true;
+                    break;
+                }
+            }
+            
+            // Verificar superposición con árboles existentes
+            if (!overlaps) {
+                for (const existingTree of this.trees) {
+                    if (Math.abs((xPos + width/2) - (existingTree.x + existingTree.width/2)) < 220) {
+                        overlaps = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (!overlaps) {
+                this.trees.push({
+                    x: xPos,
+                    y: groundY - height + 10,
+                    width: width,
+                    height: height
+                });
+                spawnedTrees++;
+            }
+        }
+        // Volver a ordenar árboles por Y para efecto de profundidad
+        this.trees.sort((a, b) => a.y - b.y);
+
+        // Limpiar memoria: despawnear plataformas flotantes y árboles que se quedaron muy atrás
+        // El suelo principal (isFloor) no se debe eliminar.
+        this.platforms = this.platforms.filter(p => p.isFloor || (p.x + p.width >= this.camera.x - 1000));
+        this.trees = this.trees.filter(t => t.x + t.width >= this.camera.x - 1000);
+    }
 
     setupControls() {
         window.addEventListener('keydown', (e) => {
@@ -669,6 +741,13 @@ export class SupervivenciaGame {
         this.player.y += this.player.velocityY * dt;
 
         // Límites del mundo
+        // Evitar que el jugador retroceda más allá del borde izquierdo de la cámara
+        if (this.player.x < this.camera.x) {
+            this.player.x = this.camera.x;
+            if (this.player.velocityX < 0) {
+                this.player.velocityX = 0;
+            }
+        }
         if (this.player.x < 0) this.player.x = 0;
         if (this.player.x + this.player.width > this.worldWidth) {
             this.player.x = this.worldWidth - this.player.width;
@@ -677,13 +756,31 @@ export class SupervivenciaGame {
         // Actualizar cámara para seguir al jugador (manual)
         const targetCameraX = this.player.x - this.config.width / 2;
 
-        // Suavizar movimiento de la cámara
-        this.camera.x += (targetCameraX - this.camera.x) * 0.1;
+        // Suavizar movimiento de la cámara - SOLO HACIA ADELANTE (DERECHA)
+        const nextCameraX = this.camera.x + (targetCameraX - this.camera.x) * 0.1;
+        if (nextCameraX > this.camera.x) {
+            this.camera.x = nextCameraX;
+        }
 
-        // Limitar cámara a los bordes del mundo
+        // Limitar cámara a los bordes del mundo (el izquierdo ya no se limita a 0 de forma regresiva)
         if (this.camera.x < 0) this.camera.x = 0;
         if (this.camera.x > this.worldWidth - this.config.width) {
             this.camera.x = this.worldWidth - this.config.width;
+        }
+
+        // Generar dinámicamente nuevas partes del mundo si el jugador se acerca al final
+        if (this.camera.x + this.config.width * 2 > this.generatedWorldEnd) {
+            const chunkStart = this.generatedWorldEnd;
+            const chunkEnd = chunkStart + 2000;
+            this.generateNextChunk(chunkStart, chunkEnd);
+            this.generatedWorldEnd = chunkEnd;
+            this.worldWidth = chunkEnd;
+            
+            // Actualizar ancho de la plataforma base
+            const floorPlat = this.platforms.find(p => p.isFloor);
+            if (floorPlat) {
+                floorPlat.width = this.worldWidth;
+            }
         }
 
         // Colisión con plataformas
@@ -2276,6 +2373,16 @@ export class SupervivenciaGame {
         this.healingTokens = [];
         this.projectiles = [];
         this.particles = [];
+
+        // Reiniciar límites del mundo y cámara
+        this.worldWidth = 10000;
+        this.generatedWorldEnd = 10000;
+        this.camera.x = 0;
+        this.camera.y = 0;
+
+        // Regenerar escenario
+        this.platforms = this.generatePlatforms();
+        this.trees = this.generateTrees();
 
         // Reiniciar timers
         this.enemySpawnTimer = 0;
